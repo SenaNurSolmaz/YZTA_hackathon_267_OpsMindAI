@@ -273,7 +273,7 @@ export default function InventoryPage() {
                         <button
                           type="button"
                           className="button sm secondary"
-                          onClick={(e) => { e.stopPropagation(); setSelectedSku(item.sku); setEditItem(item); setEditStock(item.stock.toString()); }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedSku(item.sku); setEditItem(item); setEditStock(item.stock.toString()); setEditReorderPoint(item.reorderPoint.toString()); setEditWeeklyVelocity(item.weeklyVelocity.toString()); setEditSupplierLeadDays(item.supplierLeadDays.toString()); }}
                           title="Stok güncelle"
                         >
                           Düzenle
