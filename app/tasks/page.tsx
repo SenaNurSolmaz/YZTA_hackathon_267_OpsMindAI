@@ -236,11 +236,13 @@ export default function TasksPage() {
               { key: "reason", label: "Gerekçe (opsiyonel)" },
             ].map(f => (
               <div key={f.key} className="modal-field">
-                <label>{f.label}</label>
+                <label htmlFor={`task-${f.key}`}>{f.label}</label>
                 <input
+                  id={`task-${f.key}`}
                   className="form-input"
                   value={form[f.key as keyof typeof form]}
                   onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  placeholder={f.label}
                 />
               </div>
             ))}

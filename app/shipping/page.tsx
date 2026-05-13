@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
 import { shipments, Shipment } from "@/lib/mock-data";
+import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
 type RiskFilter = "Tumu" | "Yuksek" | "Orta" | "Dusuk";
@@ -24,18 +25,18 @@ function displayRisk(risk: Shipment["risk"] | RiskFilter) {
 }
 
 export default function ShippingPage() {
-  const [data, setData] = useState<Shipment[]>([]);
+  const [data, setData] = useState<Shipment[]>(shipments);
   const [notifying, setNotifying] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
   const [filterRisk, setFilterRisk] = useState<RiskFilter>("Tumu");
-  const [selectedShipmentKey, setSelectedShipmentKey] = useState("");
+  const [selectedShipmentKey, setSelectedShipmentKey] = useState(shipmentKey(shipments[0]));
 
   useEffect(() => {
     fetch("/api/shipping").then(r => r.json()).then((res) => {
-      if (Array.isArray(res)) {
+      if (Array.isArray(res) && res.length > 0) {
         setData(res as Shipment[]);
-        if (res.length > 0) setSelectedShipmentKey(shipmentKey(res[0] as Shipment));
+        setSelectedShipmentKey(shipmentKey(res[0] as Shipment));
       } else {
         setData(shipments);
         setSelectedShipmentKey(shipmentKey(shipments[0]));
@@ -51,7 +52,8 @@ export default function ShippingPage() {
   const selectedShipment =
     filtered.find(s => shipmentKey(s) === selectedShipmentKey) ??
     filtered[0] ??
-    data[0];
+    data[0] ??
+    shipments[0];
   const selectedKey = shipmentKey(selectedShipment);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -78,13 +80,17 @@ export default function ShippingPage() {
           ).join("\n"),
         }),
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok !== false) {
         showToast(`WhatsApp + Slack bildirimi gönderildi: ${riskyOrders}`);
       } else {
-        throw new Error("notify error");
+        throw new Error(apiErrorMessage(data, "Bildirim gönderilemedi."));
       }
-    } catch {
-      showToast("Bildirim gönderilemedi. Lütfen webhook ayarlarını kontrol edin.", "error");
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Bildirim gönderilemedi. Lütfen webhook ayarlarını kontrol edin.",
+        "error"
+      );
     }
     setNotifying(false);
   };

@@ -13,12 +13,14 @@ export type AuthUser = {
 
 type AuthCtx = {
   user: AuthUser | null;
+  authReady: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthCtx>({
   user: null,
+  authReady: false,
   login: async () => false,
   logout: () => {}
 });
@@ -29,21 +31,57 @@ const DEMO_USERS: AuthUser[] = [
   { id: "u3", name: "Barış Arslan", email: "baris@opsmind.com", role: "Destek", department: "Müşteri Hizmetleri", avatar: "BA" },
 ];
 
+const roles: AuthUser["role"][] = ["Admin", "Operasyon", "Destek", "Satın Alma"];
+
+function isAuthUser(value: unknown): value is AuthUser {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    typeof candidate.email === "string" &&
+    typeof candidate.department === "string" &&
+    typeof candidate.avatar === "string" &&
+    typeof candidate.role === "string" &&
+    roles.includes(candidate.role as AuthUser["role"])
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const stored = localStorage.getItem("opsmind_user");
-    if (stored) setUser(JSON.parse(stored));
+    try {
+      const stored = localStorage.getItem("opsmind_user");
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      if (isAuthUser(parsed)) {
+        setUser(parsed);
+      } else {
+        localStorage.removeItem("opsmind_user");
+      }
+    } catch {
+      localStorage.removeItem("opsmind_user");
+    } finally {
+      setAuthReady(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (!user && pathname !== "/login") {
-      router.push("/login");
+    if (!authReady) return;
+    if (user && pathname === "/login") {
+      router.replace("/");
+      return;
     }
-  }, [user, pathname]);
+    if (!user && pathname !== "/login") {
+      router.replace("/login");
+    }
+  }, [authReady, user, pathname, router]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     await new Promise(r => setTimeout(r, 800));
@@ -64,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, authReady, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { conversations, Conversation } from "@/lib/mock-data";
+import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
 
@@ -71,12 +72,12 @@ export default function InboxPage() {
           orderRef: selected.orderRef,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok && data.draft) {
         setDraftText(prev => ({ ...prev, [selected.id]: data.draft }));
         showToast("Gemini ile yeni taslak oluşturuldu.");
       } else {
-        throw new Error(data.error ?? "unknown");
+        throw new Error(apiErrorMessage(data, "Gemini taslağı oluşturulamadı."));
       }
     } catch (e) {
       showToast("Taslak oluşturulamadı: " + (e instanceof Error ? e.message : "hata"), "error");
@@ -122,8 +123,8 @@ export default function InboxPage() {
           addedBy: "AI Yardım Masası",
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? "Hata");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Bilgi tabanına eklenemedi."));
       setShowKbModal(false);
       showToast("Bilgi tabanına eklendi. Bilgi Tabanı sayfasından görebilirsiniz.");
     } catch (e) {

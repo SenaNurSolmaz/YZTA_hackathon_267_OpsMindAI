@@ -4,7 +4,10 @@ import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "OpsMind AI — Operasyon Platformu",
-  description: "Giyilebilir teknoloji ve VR/AR ürünler için yapay zeka destekli operasyon yönetimi"
+  description: "Giyilebilir teknoloji ve VR/AR ürünler için yapay zeka destekli operasyon yönetimi",
+  icons: {
+    icon: "/favicon.svg"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

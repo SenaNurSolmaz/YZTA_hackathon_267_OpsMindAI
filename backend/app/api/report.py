@@ -12,13 +12,18 @@ class ReportRequest(BaseModel):
     shipments: Optional[List[Any]] = None
     inventory: Optional[List[Any]] = None
 
+def is_quota_error(err: str) -> bool:
+    lowered = err.lower()
+    return "429" in err or "quota" in lowered or "rate limit" in lowered or "resource exhausted" in lowered
+
 @router.post("/report")
 async def generate_report(req: ReportRequest):
     api_key = os.getenv("GEMINI_API_KEY")
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     
     if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+        print("[report] GEMINI_API_KEY tanımlı değil.")
+        raise HTTPException(status_code=500, detail="Gemini API anahtarı tanımlı değil. .env.local dosyasını kontrol edin.")
         
     genai.configure(api_key=api_key)
     
@@ -42,6 +47,7 @@ Kısa, net ve aksiyona dönük yaz."""
         return {"summary": response.text, "generatedAt": datetime.utcnow().isoformat()}
     except Exception as e:
         err = str(e)
-        if "429" in err or "quota" in err.lower():
+        print("[report] Gemini hatası:", err)
+        if is_quota_error(err):
             raise HTTPException(status_code=429, detail="Gemini API kota limiti aşıldı. Lütfen birkaç dakika sonra tekrar deneyin.")
-        raise HTTPException(status_code=502, detail=err)
+        raise HTTPException(status_code=502, detail="Gemini raporu oluşturulamadı. Lütfen bağlantı ve model ayarlarını kontrol edin.")

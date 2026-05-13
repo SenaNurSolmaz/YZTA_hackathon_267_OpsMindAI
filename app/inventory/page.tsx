@@ -2,21 +2,27 @@
 import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
 import { inventoryHealth, InventoryItem } from "@/lib/mock-data";
+import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
 
 export default function InventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>(inventoryHealth);
   const [toast, setToast] = useState<Toast>(null);
   const [loadingSkus, setLoadingSkus] = useState<Set<string>>(new Set());
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [editStock, setEditStock] = useState("");
-  const [selectedSku, setSelectedSku] = useState("");
+  const [selectedSku, setSelectedSku] = useState(inventoryHealth[0].sku);
 
   useEffect(() => {
     fetch("/api/inventory").then(r => r.json()).then((data: InventoryItem[]) => {
-      setItems(data);
-      if (data.length > 0) setSelectedSku(data[0].sku);
+      if (Array.isArray(data) && data.length > 0) {
+        setItems(data);
+        setSelectedSku(data[0].sku);
+      } else {
+        setItems(inventoryHealth);
+        setSelectedSku(inventoryHealth[0].sku);
+      }
     }).catch(() => {
       setItems(inventoryHealth);
       setSelectedSku(inventoryHealth[0].sku);
@@ -24,8 +30,10 @@ export default function InventoryPage() {
   }, []);
 
   const critical = items.filter(i => i.stock <= i.reorderPoint || i.depletionDays <= 7);
-  const avgLead = Math.round(items.reduce((a, i) => a + i.supplierLeadDays, 0) / items.length);
-  const selectedItem = items.find(i => i.sku === selectedSku) ?? critical[0] ?? items[0];
+  const avgLead = items.length > 0
+    ? Math.round(items.reduce((a, i) => a + i.supplierLeadDays, 0) / items.length)
+    : 0;
+  const selectedItem = items.find(i => i.sku === selectedSku) ?? critical[0] ?? items[0] ?? inventoryHealth[0];
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -62,12 +70,13 @@ export default function InventoryPage() {
       if (res.ok) {
         showToast("Tedarik taslağı Slack'e gönderildi.");
       } else {
-        throw new Error("webhook error");
+        const data = await res.json().catch(() => null);
+        throw new Error(apiErrorMessage(data, "Slack webhook hatası."));
       }
     } catch {
       navigator.clipboard.writeText(text.replace(/\*/g, "")).then(() => {
         showToast("Slack'e ulaşılamadı, taslak panoya kopyalandı.");
-      });
+      }).catch(() => showToast("Slack'e ulaşılamadı ve panoya kopyalama izni alınamadı.", "error"));
     }
   };
 
@@ -75,12 +84,13 @@ export default function InventoryPage() {
     setLoadingSkus(prev => new Set(prev).add(sku));
     try {
       const res = await fetch("/api/inventory/order", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku, quantity: 20 }) });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(apiErrorMessage(data, "Sipariş verilemedi."));
       if (data.ok) {
         setItems(prev => prev.map(i => i.sku === sku ? { ...i, stock: data.entry.stock, depletionDays: data.entry.depletionDays } : i));
         showToast(`${sku} için tedarik siparişi verildi. Stok güncellendi.`);
       }
-    } catch { showToast("Sipariş verilemedi.", "error"); }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Sipariş verilemedi.", "error"); }
     setLoadingSkus(prev => { const s = new Set(prev); s.delete(sku); return s; });
   };
 
@@ -90,12 +100,13 @@ export default function InventoryPage() {
     if (isNaN(n) || n < 0) { showToast("Geçersiz stok değeri.", "error"); return; }
     try {
       const res = await fetch(`/api/inventory/${editItem.sku}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stock: n }) });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(apiErrorMessage(data, "Güncelleme başarısız."));
       if (data.ok) {
         setItems(prev => prev.map(i => i.sku === editItem.sku ? { ...i, stock: data.entry.stock, depletionDays: data.entry.depletionDays } : i));
         showToast(`${editItem.sku} stoku ${n} olarak güncellendi.`);
       }
-    } catch { showToast("Güncelleme başarısız.", "error"); }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Güncelleme başarısız.", "error"); }
     setEditItem(null);
     setEditStock("");
   };

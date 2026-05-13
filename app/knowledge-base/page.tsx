@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
 import { KnowledgeEntry } from "@/lib/mock-data";
+import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
 
@@ -58,8 +59,8 @@ export default function KnowledgeBasePage() {
           addedBy: "Oturum Kullanıcısı"
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? "Hata");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Kayıt eklenemedi."));
       const newEntry: KnowledgeEntry = data.entry;
       setEntries(prev => [newEntry, ...prev]);
       setSelectedEntryId(newEntry.id);
@@ -67,7 +68,7 @@ export default function KnowledgeBasePage() {
       setForm({ title: "", content: "", category: "Teknik Destek" });
       showToast("Bilgi tabanına eklendi.");
     } catch (err) {
-      showToast("Kayıt eklenemedi: " + String(err), "error");
+      showToast("Kayıt eklenemedi: " + (err instanceof Error ? err.message : "hata"), "error");
     }
   };
 
@@ -75,15 +76,16 @@ export default function KnowledgeBasePage() {
     setDeletingId(id);
     try {
       const res = await fetch(`/api/knowledge?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Silinemedi");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Kayıt silinemedi."));
       setEntries(prev => prev.filter(e => e.id !== id));
       if (selectedEntryId === id) {
         const next = entries.find(e => e.id !== id);
         if (next) setSelectedEntryId(next.id);
       }
       showToast("Kayıt silindi.");
-    } catch {
-      showToast("Kayıt silinemedi.", "error");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Kayıt silinemedi.", "error");
     } finally {
       setDeletingId(null);
     }

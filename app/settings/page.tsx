@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
 import { users as initialUsers } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth";
+import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
 
@@ -36,17 +37,34 @@ const notificationItems = [
   { key: "sentiment_neg", label: "Müşteri olumsuz sentiment alarmı", target: "WhatsApp" },
 ];
 
+function integrationEnvLabel(name: string) {
+  if (name === "Slack") return "SLACK_NOTIFY_WEBHOOK_URL / SLACK_SUPPLY_WEBHOOK_URL";
+  if (name === "WhatsApp Business") return "WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_NUMBER_ID";
+  if (name === "Shopify") return "Shopify webhook simülasyonu";
+  if (name === "ChromaDB") return "Demo vektör veritabanı ayarı";
+  return "Demo bağlantı ayarı";
+}
+
+function integrationSecretStatus(name: string, connected: boolean) {
+  if (!connected) return "Henüz demo bağlantı modunda";
+  if (name === "Shopify" || name === "ChromaDB") return "Gizli değer gerekmiyor";
+  return "Sunucuda .env.local üzerinden maskeli yönetiliyor";
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState(initialUsers);
   const [toast, setToast] = useState<Toast>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", role: "Destek", department: "" });
   const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("kullanicilar");
   const [selectedUserId, setSelectedUserId] = useState(initialUsers[0].id);
   const [selectedIntegrationName, setSelectedIntegrationName] = useState(integrations[0].name);
+  const [integrationTestLog, setIntegrationTestLog] = useState<Record<string, string>>({});
   const [selectedNotificationKey, setSelectedNotificationKey] = useState(notificationItems[0].key);
   const [notifPrefs, setNotifPrefs] = useState(notificationItems.map(n => ({ ...n, enabled: true })));
+  const [savingNotifications, setSavingNotifications] = useState(false);
 
   useEffect(() => {
     fetch("/api/users").then(r => r.json()).then(data => {
@@ -69,14 +87,19 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      const data = await res.json();
-      if (data.ok) {
-        showToast(`${name}: ${data.detail}`);
+      const data = await res.json().catch(() => null);
+      const detail = data?.detail ?? apiErrorMessage(data, "Test sonucu alınamadı.");
+      const testedAt = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+      setIntegrationTestLog(prev => ({ ...prev, [name]: `${testedAt} · ${detail}` }));
+      if (data?.ok) {
+        showToast(`${name}: ${detail}`);
       } else {
-        showToast(`${name} bağlantı hatası: ${data.detail}`, "error");
+        showToast(`${name} bağlantı hatası: ${detail}`, "error");
       }
     } catch {
       showToast(`${name} bağlantı testi başarısız.`, "error");
+      const testedAt = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+      setIntegrationTestLog(prev => ({ ...prev, [name]: `${testedAt} · Test başarısız.` }));
     }
   };
 
@@ -86,20 +109,28 @@ export default function SettingsPage() {
     if (!isAdmin) { showToast("Bu işlemi yapmak için Admin yetkisi gereklidir.", "error"); return; }
     const u = users.find(u => u.id === id);
     if (!u) return;
+    if (u.id === user?.id && u.active) {
+      showToast("Aktif admin oturumunu deaktive edemezsiniz.", "error");
+      return;
+    }
     try {
-      await fetch(`/api/users/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: !u.active }) });
+      const res = await fetch(`/api/users/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: !u.active }) });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Kullanıcı durumu güncellenemedi."));
       setUsers(prev => prev.map(u => u.id === id ? { ...u, active: !u.active } : u));
       showToast("Kullanıcı durumu güncellendi.");
-    } catch { showToast("Güncelleme başarısız.", "error"); }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Güncelleme başarısız.", "error"); }
   };
 
   const handleRoleChange = async (id: string, role: string) => {
     if (!isAdmin) { showToast("Bu işlemi yapmak için Admin yetkisi gereklidir.", "error"); return; }
     try {
-      await fetch(`/api/users/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+      const res = await fetch(`/api/users/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Rol güncellenemedi."));
       setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
       showToast("Rol güncellendi.");
-    } catch { showToast("Güncelleme başarısız.", "error"); }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Güncelleme başarısız.", "error"); }
   };
 
   const handleAddUser = async () => {
@@ -108,7 +139,8 @@ export default function SettingsPage() {
     }
     try {
       const res = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newUser) });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(apiErrorMessage(data, "Kullanıcı eklenemedi."));
       if (data.ok) {
         setUsers(prev => [...prev, data.entry]);
         setSelectedUserId(data.entry.id);
@@ -116,21 +148,28 @@ export default function SettingsPage() {
         setNewUser({ name: "", email: "", role: "Destek", department: "" });
         showToast("Kullanıcı eklendi.");
       }
-    } catch { showToast("Ekleme başarısız.", "error"); }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Ekleme başarısız.", "error"); }
   };
 
   const handleSaveNotifications = async () => {
+    setSavingNotifications(true);
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: notifPrefs }) });
-      const data = await res.json();
-      if (data.ok) showToast("Bildirim tercihleri kaydedildi.");
-    } catch { showToast("Kaydetme başarısız.", "error"); }
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(apiErrorMessage(data, "Bildirim tercihleri kaydedilemedi."));
+      showToast("Bildirim tercihleri kaydedildi.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Kaydetme başarısız.", "error");
+    } finally {
+      setSavingNotifications(false);
+    }
   };
 
   const selectedUser = users.find(u => u.id === selectedUserId) ?? users[0];
   const selectedIntegration = integrations.find(i => i.name === selectedIntegrationName) ?? integrations[0];
+  const selectedIntegrationLastTest = integrationTestLog[selectedIntegration.name] ?? "Henüz test edilmedi";
   const selectedNotification =
-    notificationItems.find(item => item.key === selectedNotificationKey) ?? notificationItems[0];
+    notifPrefs.find(item => item.key === selectedNotificationKey) ?? notifPrefs[0] ?? { ...notificationItems[0], enabled: true };
 
   return (
     <PageShell
@@ -158,7 +197,7 @@ export default function SettingsPage() {
                 <p className="muted" style={{ margin: "10px 0 0" }}>{selectedIntegration.desc}</p>
                 <div className="context-list">
                   <div className="context-row"><span>Durum</span><strong>{selectedIntegration.connected ? "Bağlı" : "Bağlı değil"}</strong></div>
-                  <div className="context-row"><span>Son test</span><strong>Bugün 14:32</strong></div>
+                  <div className="context-row"><span>Son test</span><strong>{selectedIntegrationLastTest}</strong></div>
                 </div>
               </>
             )}
@@ -168,7 +207,7 @@ export default function SettingsPage() {
                 <h3 className="context-title">{selectedNotification.label}</h3>
                 <div className="context-list">
                   <div className="context-row"><span>Kanal</span><strong>{selectedNotification.target}</strong></div>
-                  <div className="context-row"><span>Durum</span><strong>Aktif</strong></div>
+                  <div className="context-row"><span>Durum</span><strong>{selectedNotification.enabled ? "Aktif" : "Kapalı"}</strong></div>
                 </div>
               </>
             )}
@@ -215,9 +254,10 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     className="button sm"
-                    onClick={() => showToast(`${selectedNotification.label} ayarı güncellendi.`)}
+                    onClick={handleSaveNotifications}
+                    disabled={savingNotifications}
                   >
-                    Ayarı Güncelle
+                    {savingNotifications ? "Kaydediliyor..." : "Ayarı Güncelle"}
                   </button>
                 </div>
               </>
@@ -412,7 +452,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       className="button sm secondary"
-                      onClick={(e) => { e.stopPropagation(); setSelectedIntegrationName(intg.name); showToast(`${intg.name} ayarları güncellendi.`); }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedIntegrationName(intg.name); setShowIntegrationModal(true); }}
                     >
                       Ayarlar
                     </button>
@@ -450,8 +490,8 @@ export default function SettingsPage() {
               ))}
             </div>
             <div style={{ marginTop: 16 }}>
-              <button type="button" className="button" onClick={handleSaveNotifications}>
-                Kaydet
+              <button type="button" className="button" onClick={handleSaveNotifications} disabled={savingNotifications}>
+                {savingNotifications ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </div>
           </section>
@@ -488,18 +528,20 @@ export default function SettingsPage() {
             <h3>Yeni Kullanıcı Ekle</h3>
             {(["name", "email", "department"] as const).map(field => (
               <div key={field} className="modal-field">
-                <label>{field === "name" ? "Ad Soyad" : field === "email" ? "E-posta" : "Departman"}</label>
+                <label htmlFor={`user-${field}`}>{field === "name" ? "Ad Soyad" : field === "email" ? "E-posta" : "Departman"}</label>
                 <input
+                  id={`user-${field}`}
                   className="form-input"
                   value={newUser[field]}
                   onChange={e => setNewUser(p => ({ ...p, [field]: e.target.value }))}
                   type={field === "email" ? "email" : "text"}
+                  placeholder={field === "name" ? "Ad Soyad" : field === "email" ? "ad@opsmind.com" : "Departman"}
                 />
               </div>
             ))}
             <div className="modal-field">
-              <label>Rol</label>
-              <select className="form-input" value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}>
+              <label htmlFor="user-role">Rol</label>
+              <select id="user-role" className="form-input" value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}>
                 <option>Admin</option>
                 <option>Operasyon</option>
                 <option>Destek</option>
@@ -509,6 +551,41 @@ export default function SettingsPage() {
             <div className="stack" style={{ marginTop: 8 }}>
               <button type="button" className="button" onClick={handleAddUser}>Ekle</button>
               <button type="button" className="button secondary" onClick={() => setShowAddModal(false)}>İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIntegrationModal && (
+        <div className="modal-overlay" onClick={() => setShowIntegrationModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>{selectedIntegration.name} Ayarları</h3>
+            <p className="muted" style={{ marginTop: -8 }}>{selectedIntegration.desc}</p>
+            <div className="status-list">
+              <div className="status-row">
+                <span>Bağlantı durumu</span>
+                <span>{selectedIntegration.connected ? "Bağlı" : "Bağlı değil"}</span>
+              </div>
+              <div className="status-row">
+                <span>Env / webhook</span>
+                <span>{integrationEnvLabel(selectedIntegration.name)}</span>
+              </div>
+              <div className="status-row">
+                <span>Gizli değer</span>
+                <span>{integrationSecretStatus(selectedIntegration.name, selectedIntegration.connected)}</span>
+              </div>
+              <div className="status-row">
+                <span>Son test</span>
+                <span>{selectedIntegrationLastTest}</span>
+              </div>
+            </div>
+            <div className="stack" style={{ marginTop: 16 }}>
+              <button type="button" className="button" onClick={() => testIntegration(selectedIntegration.name)}>
+                Bağlantıyı Test Et
+              </button>
+              <button type="button" className="button secondary" onClick={() => setShowIntegrationModal(false)}>
+                Kapat
+              </button>
             </div>
           </div>
         </div>

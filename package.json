@@ -5,17 +5,22 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test:backend": ".\\.venv\\Scripts\\python.exe scripts/backend_smoke.py"
   },
   "dependencies": {
     "next": "^15.0.0",
-    "pg": "^8.13.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.14"
+    }
+  },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/pg": "^8.11.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "typescript": "^5"
