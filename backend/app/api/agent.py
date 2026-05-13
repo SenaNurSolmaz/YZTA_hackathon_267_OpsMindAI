@@ -17,7 +17,7 @@ def is_quota_error(err: str) -> bool:
 @router.post("/agent")
 async def generate_agent_response(req: AgentRequest):
     api_key = os.getenv("GEMINI_API_KEY")
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
     
     if not api_key or api_key == "SIMULATION_KEY" or api_key.strip() == "":
         print("[agent] GEMINI_API_KEY tanımlı değil veya simülasyon modunda. Simülasyon yanıtı üretiliyor.")
@@ -34,7 +34,7 @@ async def generate_agent_response(req: AgentRequest):
             full_prompt,
             generation_config=genai.GenerationConfig(
                 temperature=0.5,
-                max_output_tokens=512,
+                max_output_tokens=4096,
             )
         )
         return {"result": response.text}

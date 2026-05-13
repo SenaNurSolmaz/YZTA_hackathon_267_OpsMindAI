@@ -20,7 +20,7 @@ def is_quota_error(err: str) -> bool:
 @router.post("/ai-draft")
 async def generate_ai_draft(req: AIDraftRequest):
     api_key = os.getenv("GEMINI_API_KEY")
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
     
     if not api_key or api_key == "SIMULATION_KEY" or api_key.strip() == "":
         print("[ai-draft] GEMINI_API_KEY tanımlı değil veya simülasyon modunda. Simülasyon taslağı üretiliyor.")
@@ -45,7 +45,7 @@ Sadece müşteriye gönderilecek yanıt metnini yaz. Selamlama ile başla, özü
             prompt,
             generation_config=genai.GenerationConfig(
                 temperature=0.7,
-                max_output_tokens=256,
+                max_output_tokens=4096,
             )
         )
         return {"draft": response.text}

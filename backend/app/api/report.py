@@ -19,7 +19,7 @@ def is_quota_error(err: str) -> bool:
 @router.post("/report")
 async def generate_report(req: ReportRequest):
     api_key = os.getenv("GEMINI_API_KEY")
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
     
     if not api_key:
         print("[report] GEMINI_API_KEY tanımlı değil.")
@@ -41,7 +41,7 @@ Kısa, net ve aksiyona dönük yaz."""
             prompt,
             generation_config=genai.GenerationConfig(
                 temperature=0.4,
-                max_output_tokens=512,
+                max_output_tokens=4096,
             )
         )
         return {"summary": response.text, "generatedAt": datetime.utcnow().isoformat()}
