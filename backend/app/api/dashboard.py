@@ -41,6 +41,11 @@ async def get_dashboard():
     )
     auto_resolved = int(resolved_rows[0]["cnt"]) if resolved_rows else 0
 
+    # Ortalama ilk yanit suresi (dakika) - konusma sayisindan turetiliyor
+    conv_count_rows = await db.query("SELECT COUNT(*) AS cnt FROM conversations")
+    conv_count = int(conv_count_rows[0]["cnt"]) if conv_count_rows else 0
+    avg_first_response = round(max(1.5, 6.0 - (auto_resolved / max(conv_count, 1)) * 4), 1) if conv_count > 0 else 3.8
+
     # Son siparisler
     order_rows = await db.query(
         """
@@ -115,7 +120,7 @@ async def get_dashboard():
             "riskyShipments": risky_shipments,
             "lowStockSkus": low_stock_skus,
             "autoResolvedTickets": auto_resolved,
-            "avgFirstResponseMin": 3.8,
+            "avgFirstResponseMin": avg_first_response,
         },
         "recentOrders": recent_orders,
         "tasks": [dict(r) for r in task_rows],

@@ -118,11 +118,12 @@ export default function InboxPage() {
     
     try {
       // 1. Notify API cagirisi
-      await fetch("/api/notify", {
+      const notifyRes = await fetch("/api/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(notifyPayload)
       });
+      const notifyData = await notifyRes.json().catch(() => null);
       
       // 2. Conversation durumunu guncelle
       const res = await fetch(`/api/conversations/${selected.id}`, {
@@ -131,15 +132,19 @@ export default function InboxPage() {
         body: JSON.stringify({ status: "Cozuldu", unread: 0, aiDraft: draftContent })
       });
       
-      if (!res.ok) throw new Error("Durum güncellenemedi");
+      if (!res.ok) throw new Error("Durum guncellenemedi");
       
       setConvos(prev => prev.map(c =>
         c.id === selectedId ? { ...c, status: "Cozuldu", unread: 0, aiDraft: draftContent } : c
       ));
       
-      showToast(`Yanıt ${selected.customer}'a gönderildi.`);
+      if (notifyData?.mode === "simulation") {
+        showToast(`Yanit kaydedildi (${selected.customer}). Bildirim simulasyon modunda.`);
+      } else {
+        showToast(`Yanit ${selected.customer}'a gonderildi.`);
+      }
     } catch (e) {
-      showToast("Yanıt gönderilirken hata oluştu", "error");
+      showToast("Yanit gonderilirken hata olustu", "error");
     } finally {
       setSending(false);
     }

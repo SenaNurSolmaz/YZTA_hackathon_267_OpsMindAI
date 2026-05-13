@@ -64,21 +64,25 @@ export default function ShippingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          slackText: `*OpsMind Proaktif Bilgilendirme* - Yüksek Riskli Kargolar:\n${slackText}`,
+          slackText: `*OpsMind Proaktif Bilgilendirme* - Yuksek Riskli Kargolar:\n${slackText}`,
           wpText: riskyShipments.map(s =>
             `Acil: ${s.orderId} - ${s.customer}: ${s.status}. SLA: ${s.slaHoursLeft > 0 ? "+" : ""}${s.slaHoursLeft}s`
           ).join("\n"),
         }),
       });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.ok !== false) {
-        showToast(`WhatsApp + Slack bildirimi gönderildi: ${riskyOrders}`);
+      const result = await res.json().catch(() => null);
+      if (res.ok && result?.ok !== false) {
+        if (result?.mode === "simulation") {
+          showToast(`Bildirim simulasyonu basarili (${riskyOrders}). Gercek gonderim icin Ayarlar > Entegrasyonlar'i kontrol edin.`);
+        } else {
+          showToast(`WhatsApp + Slack bildirimi gonderildi: ${riskyOrders}`);
+        }
       } else {
-        throw new Error(apiErrorMessage(data, "Bildirim gönderilemedi."));
+        throw new Error(apiErrorMessage(result, "Bildirim gonderilemedi."));
       }
     } catch (err) {
       showToast(
-        err instanceof Error ? err.message : "Bildirim gönderilemedi. Lütfen webhook ayarlarını kontrol edin.",
+        err instanceof Error ? err.message : "Bildirim gonderilemedi. Lutfen webhook ayarlarini kontrol edin.",
         "error"
       );
     }

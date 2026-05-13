@@ -37,8 +37,8 @@ async def notify(req: NotifyRequest):
                     results["slack"] = "error:network"
                     errors.append("slack")
             else:
-                print(f"[notify] Slack simülasyonu (webhook yok): {req.slackText[:80]}...")
-                results["slack"] = "ok"
+                print(f"[notify] Slack simulasyonu (webhook yok): {req.slackText[:80]}...")
+                results["slack"] = "simulation"
 
         # WhatsApp
         if req.wpText:
@@ -57,18 +57,27 @@ async def notify(req: NotifyRequest):
                     if res.status_code == 200:
                         results["whatsapp"] = "ok"
                     else:
-                        print("[notify] WhatsApp hatası:", res.status_code, res.text)
+                        print("[notify] WhatsApp hatasi:", res.status_code, res.text)
                         results["whatsapp"] = f"error:{res.status_code}"
                         errors.append("whatsapp")
                 except Exception as e:
-                    print("[notify] WhatsApp fetch hatası:", str(e))
+                    print("[notify] WhatsApp fetch hatasi:", str(e))
                     results["whatsapp"] = "error:network"
                     errors.append("whatsapp")
             else:
-                print(f"[notify] WhatsApp simülasyonu (token yok): {req.wpText[:80]}...")
-                results["whatsapp"] = "ok"
+                missing = []
+                if not wp_token: missing.append("WHATSAPP_ACCESS_TOKEN")
+                if not wp_phone_id: missing.append("WHATSAPP_PHONE_NUMBER_ID")
+                if not wp_notify_number: missing.append("WHATSAPP_NOTIFY_NUMBER")
+                print(f"[notify] WhatsApp simulasyonu (eksik: {', '.join(missing)}): {req.wpText[:80]}...")
+                results["whatsapp"] = "simulation"
+                results["whatsapp_missing"] = missing
+
+    mode = "live"
+    if results.get("whatsapp") == "simulation" or results.get("slack") == "simulation":
+        mode = "simulation"
 
     if errors:
-        return {"ok": False, "results": results, "errors": errors}
+        return {"ok": False, "results": results, "errors": errors, "mode": mode}
 
-    return {"ok": True, "results": results}
+    return {"ok": True, "results": results, "mode": mode}
