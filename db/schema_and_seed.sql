@@ -124,6 +124,17 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 
 -- ============================================================
+-- BİLDİRİM TERCİHLERİ
+-- ============================================================
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  key         TEXT PRIMARY KEY,
+  label       TEXT NOT NULL,
+  target      TEXT NOT NULL DEFAULT 'Slack',
+  enabled     BOOLEAN NOT NULL DEFAULT true,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
 -- SEED — Mock veriler
 -- ============================================================
 
@@ -182,13 +193,32 @@ INSERT INTO activity_log (event_time, text) VALUES
   ('2026-05-11T13:12:00Z','Kargo webhook: #151 Apple Vision Pro gumruk gecikmesinde.'),
   ('2026-05-11T12:40:00Z','Slack #kargo kanalina 2 yeni risk ozeti gonderildi.');
 
+-- Bildirim Tercihleri
+INSERT INTO notification_preferences (key, label, target, enabled) VALUES
+  ('cargo_high',    'Yuksek riskli kargo uyarisi',     'WhatsApp', true),
+  ('stock_low',     'Stok esik alti bildirimi',         'Slack',    true),
+  ('ai_draft',      'AI taslagi hazir oldugunda',       'E-posta',  true),
+  ('daily_summary', 'Gunluk operasyon ozeti',           'Slack',    true),
+  ('sentiment_neg', 'Musteri olumsuz sentiment alarmi', 'WhatsApp', true)
+ON CONFLICT (key) DO NOTHING;
+
+-- Konusmalar (AI Yardim Masasi)
+INSERT INTO conversations (id, customer, channel, topic, last_message, status, unread, order_ref, ai_draft, updated_at) VALUES
+  ('conv-1', 'Merve Aydin', 'WhatsApp', 'Kargo',  '128 nolu siparisim yarin elime ulasir mi?',         'AI Taslagi Hazir',  2, '#128', 'Merhaba Merve Hanim, Meta Quest 3 128GB siparisiz su an Yurtici Kargo transfer merkezinde bulunmaktadir. Kargo firmasi ile acil eskalasyon acilmistir ve en gec yarin sabaha kadar teslim edilmesi planlanmaktadir.', '2026-05-11T14:22:00Z'),
+  ('conv-2', 'Ali Korkmaz', 'Email',    'Teknik', 'Galaxy Ring uygulama ile eslesmedi, ne yapabilirim?','Temsilci Bekliyor', 0, '#119', 'Ali Bey, Samsung Health uygulamasini guncelleyip telefonu yeniden baslatmanizi oneririm. Sorun devam ederse fabrika ayarlarina donmeden once bizi arayin, uzaktan destek verebiliriz.', '2026-05-11T13:05:00Z'),
+  ('conv-3', 'Zeynep Demir','Live Chat','Stok',   'Apple Vision Pro siparis versem ne zaman gelir?',   'AI Taslagi Hazir',  1, NULL,   'Zeynep Hanim, Apple Vision Pro su an stokta sinirli miktarda mevcuttur (3 adet). Siparisini simdi vermeniz durumunda, temin suresini de hesaba katarak yaklasik 14-18 is gunu icinde teslimat yapilabilir.', '2026-05-11T12:48:00Z'),
+  ('conv-4', 'Can Erdem',   'WhatsApp', 'Kargo',  'Kurye yanlis adrese gitmis diyor, ne yapacagim?',   'Temsilci Bekliyor', 3, '#145', 'Can Bey, Garmin Fenix 8 teslimatiniz icin kargo firmasi ile acil eskalasyon actik. 24 saat icinde adresinize tekrar teslimat yapilmasi planlanmaktadir. Size bilgi verecegiz.', '2026-05-11T11:20:00Z')
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================================
 -- Doğrulama
 -- ============================================================
-SELECT 'users' AS tablo, COUNT(*) FROM users
-UNION ALL SELECT 'orders',       COUNT(*) FROM orders
-UNION ALL SELECT 'shipments',    COUNT(*) FROM shipments
-UNION ALL SELECT 'inventory',    COUNT(*) FROM inventory
-UNION ALL SELECT 'knowledge_base',COUNT(*) FROM knowledge_base
-UNION ALL SELECT 'tasks',        COUNT(*) FROM tasks
-UNION ALL SELECT 'activity_log', COUNT(*) FROM activity_log;
+SELECT 'users'                    AS tablo, COUNT(*) FROM users
+UNION ALL SELECT 'orders',                              COUNT(*) FROM orders
+UNION ALL SELECT 'shipments',                           COUNT(*) FROM shipments
+UNION ALL SELECT 'inventory',                           COUNT(*) FROM inventory
+UNION ALL SELECT 'conversations',                       COUNT(*) FROM conversations
+UNION ALL SELECT 'knowledge_base',                      COUNT(*) FROM knowledge_base
+UNION ALL SELECT 'tasks',                               COUNT(*) FROM tasks
+UNION ALL SELECT 'activity_log',                        COUNT(*) FROM activity_log
+UNION ALL SELECT 'notification_preferences',            COUNT(*) FROM notification_preferences;

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
-import { users as initialUsers } from "@/lib/mock-data";
+
 import { useAuth } from "@/lib/auth";
 import { apiErrorMessage } from "@/lib/api-error";
 
@@ -53,13 +53,13 @@ function integrationSecretStatus(name: string, connected: boolean) {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<any[]>([]);
   const [toast, setToast] = useState<Toast>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showIntegrationModal, setShowIntegrationModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", role: "Destek", department: "" });
   const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("kullanicilar");
-  const [selectedUserId, setSelectedUserId] = useState(initialUsers[0].id);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedIntegrationName, setSelectedIntegrationName] = useState(integrations[0].name);
   const [integrationTestLog, setIntegrationTestLog] = useState<Record<string, string>>({});
   const [selectedNotificationKey, setSelectedNotificationKey] = useState(notificationItems[0].key);
@@ -165,7 +165,7 @@ export default function SettingsPage() {
     }
   };
 
-  const selectedUser = users.find(u => u.id === selectedUserId) ?? users[0];
+  const selectedUser = users.find(u => u.id === selectedUserId) ?? users[0] ?? null;
   const selectedIntegration = integrations.find(i => i.name === selectedIntegrationName) ?? integrations[0];
   const selectedIntegrationLastTest = integrationTestLog[selectedIntegration.name] ?? "Henüz test edilmedi";
   const selectedNotification =
@@ -179,7 +179,7 @@ export default function SettingsPage() {
       rightPanel={
         <div className="context-stack">
           <div className="context-card context-card--warm">
-            {tab === "kullanicilar" && (
+            {tab === "kullanicilar" && selectedUser && (
               <>
                 <p className="context-kicker">Seçili kullanıcı</p>
                 <h3 className="context-title">{selectedUser.name}</h3>
@@ -217,14 +217,15 @@ export default function SettingsPage() {
               <>
                 <p className="context-kicker">Kullanıcı aksiyonu</p>
                 <div className="context-actions">
-                  <button
-                    type="button"
-                    className="button sm secondary"
-                    onClick={() => handleToggleActive(selectedUser.id)}
-                    disabled={!isAdmin}
-                  >
-                    {selectedUser.active ? "Deaktive Et" : "Aktive Et"}
-                  </button>
+                  {selectedUser && (
+                    <button
+                      type="button"
+                      className="button sm secondary"
+                      onClick={() => handleToggleActive(selectedUser.id)}
+                    >
+                      {selectedUser.active ? "Deaktive Et" : "Aktive Et"}
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -321,7 +322,7 @@ export default function SettingsPage() {
                 {users.map(u => (
                   <tr
                     key={u.id}
-                    className={`selectable-row ${u.id === selectedUser.id ? "is-selected" : ""}`}
+                    className={`selectable-row ${selectedUser && u.id === selectedUser.id ? "is-selected" : ""}`}
                     onClick={() => setSelectedUserId(u.id)}
                   >
                     <td><strong>{u.name}</strong></td>

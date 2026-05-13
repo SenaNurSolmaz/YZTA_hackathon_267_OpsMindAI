@@ -1,22 +1,17 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-import time
+from typing import Optional
+from app.db import get_db
 
 router = APIRouter()
 
-_store: List[Dict[str, Any]] = [
-    {"id": "task-1", "title": "#128 müşterisine proaktif gecikme mesajı", "owner": "Destek", "due": "Bugün 17:00", "reason": "SLA -6 saat, risk Yüksek.", "status": "Acik"},
-    {"id": "task-2", "title": "Samsung Galaxy Ring acil tedarik siparişi", "owner": "Satın Alma", "due": "Yarın 10:00", "reason": "3 günde kritik stok.", "status": "Acik"},
-    {"id": "task-3", "title": "#145 kargo eskalasyon takibi", "owner": "Operasyon", "due": "Bugün 18:30", "reason": "Müşteri olumsuz sentiment.", "status": "Acik"},
-]
 
 class TaskCreate(BaseModel):
     title: str
     owner: str
     due: str
     reason: Optional[str] = ""
+
 
 class TaskUpdate(BaseModel):
     status: Optional[str] = None
@@ -25,45 +20,89 @@ class TaskUpdate(BaseModel):
     due: Optional[str] = None
     reason: Optional[str] = None
 
+
+def _map_row(r: dict) -> dict:
+    item = dict(r)
+    if "createdAt" in item and hasattr(item["createdAt"], "isoformat"):
+        item["createdAt"] = item["createdAt"].isoformat()
+    if "created_at" in item and hasattr(item["created_at"], "isoformat"):
+        item["created_at"] = item["created_at"].isoformat()
+    return item
+
+
 @router.get("/tasks")
 async def get_tasks():
-    return _store
+    db = await get_db()
+    rows = await db.query(
+        """
+        SELECT
+            id, title, owner, due, reason, status,
+            created_at AS "createdAt"
+        FROM tasks
+        ORDER BY created_at DESC
+        """
+    )
+    return [_map_row(r) for r in rows]
+
 
 @router.post("/tasks")
 async def create_task(req: TaskCreate):
-    entry = {
-        "id": f"task-{int(time.time() * 1000)}",
-        "title": req.title,
-        "owner": req.owner,
-        "due": req.due,
-        "reason": req.reason or "",
-        "status": "Acik",
-    }
-    _store.append(entry)
-    return {"ok": True, "entry": entry}
+    db = await get_db()
+    row = await db.execute_one(
+        """
+        INSERT INTO tasks (title, owner, due, reason, status)
+        VALUES ($1, $2, $3, $4, 'Acik')
+        RETURNING id, title, owner, due, reason, status, created_at AS "createdAt"
+        """,
+        req.title, req.owner, req.due, req.reason or ""
+    )
+    if not row:
+        raise HTTPException(status_code=500, detail="Gorev olusturulamadi")
+    return {"ok": True, "entry": _map_row(row)}
+
 
 @router.put("/tasks/{task_id}")
 async def update_task(task_id: str, req: TaskUpdate):
-    for task in _store:
-        if task["id"] == task_id:
-            if req.status is not None:
-                task["status"] = req.status
-            if req.title is not None:
-                task["title"] = req.title
-            if req.owner is not None:
-                task["owner"] = req.owner
-            if req.due is not None:
-                task["due"] = req.due
-            if req.reason is not None:
-                task["reason"] = req.reason
-            return {"ok": True, "entry": task}
-    raise HTTPException(status_code=404, detail="Görev bulunamadı")
+    db = await get_db()
+
+    existing = await db.query("SELECT id FROM tasks WHERE id = $1", task_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Gorev bulunamadi")
+
+    updates = []
+    params = []
+    idx = 1
+
+    for field, col in [
+        ("status", "status"), ("title", "title"),
+        ("owner", "owner"), ("due", "due"), ("reason", "reason")
+    ]:
+        val = getattr(req, field)
+        if val is not None:
+            updates.append(f"{col} = ${idx}")
+            params.append(val)
+            idx += 1
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Guncellenecek alan yok")
+
+    params.append(task_id)
+    sql = f"""
+        UPDATE tasks SET {', '.join(updates)}
+        WHERE id = ${idx}
+        RETURNING id, title, owner, due, reason, status, created_at AS "createdAt"
+    """
+    row = await db.execute_one(sql, *params)
+    if not row:
+        raise HTTPException(status_code=500, detail="Guncelleme basarisiz")
+    return {"ok": True, "entry": _map_row(row)}
+
 
 @router.delete("/tasks/{task_id}")
 async def delete_task(task_id: str):
-    global _store
-    before = len(_store)
-    _store = [t for t in _store if t["id"] != task_id]
-    if len(_store) == before:
-        raise HTTPException(status_code=404, detail="Görev bulunamadı")
+    db = await get_db()
+    existing = await db.query("SELECT id FROM tasks WHERE id = $1", task_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Gorev bulunamadi")
+    await db.execute("DELETE FROM tasks WHERE id = $1", task_id)
     return {"ok": True, "deleted": task_id}

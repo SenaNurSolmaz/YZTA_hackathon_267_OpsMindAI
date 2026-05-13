@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -16,6 +17,9 @@ from app.api.inventory import router as inventory_router
 from app.api.users import router as users_router
 from app.api.notifications import router as notifications_router
 from app.api.dashboard import router as dashboard_router
+from app.api.orders import router as orders_router
+from app.api.conversations import router as conversations_router
+from app.api.activity_log import router as activity_log_router
 
 # Load .env.local from project root (Next.js convention), fallback to .env
 project_root = Path(__file__).resolve().parent.parent
@@ -27,14 +31,24 @@ if env_local.exists():
 elif env_file.exists():
     load_dotenv(env_file)
 else:
-    load_dotenv()  # fallback: search current dir
+    load_dotenv()
 
-app = FastAPI(title="Hackathon Backend API")
 
-# Setup CORS
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Uygulama baslarken DB baglantisini kur
+    from app.db import db
+    await db.connect()
+    yield
+    # Uygulama kapanirken DB baglantisini kapat
+    await db.disconnect()
+
+
+app = FastAPI(title="OpsMind AI Backend", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,10 +66,17 @@ app.include_router(inventory_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(orders_router, prefix="/api")
+app.include_router(conversations_router, prefix="/api")
+app.include_router(activity_log_router, prefix="/api")
+
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok"}
+    from app.db import db
+    db_status = "connected" if db.pool is not None else "disconnected"
+    return {"status": "ok", "db": db_status}
+
 
 @app.post("/api/integration-test")
 async def integration_test(body: dict):
@@ -68,14 +89,14 @@ async def integration_test(body: dict):
         if url:
             try:
                 async with httpx.AsyncClient() as client:
-                    res = await client.post(url, json={"text": "OpsMind bağlantı testi ✓"})
+                    res = await client.post(url, json={"text": "OpsMind baglanti testi"})
                     result["ok"] = res.status_code == 200
                     result["detail"] = f"HTTP {res.status_code}"
             except Exception as e:
                 result["detail"] = str(e)
         else:
             result["ok"] = True
-            result["detail"] = "Webhook URL tanımlı değil — simülasyon modu aktif."
+            result["detail"] = "Webhook URL tanimli degil — simulasyon modu aktif."
 
     elif name == "WhatsApp Business":
         token = os.getenv("WHATSAPP_ACCESS_TOKEN")
@@ -84,18 +105,18 @@ async def integration_test(body: dict):
             result["detail"] = f"Token mevcut ({token[:8]}...)"
         else:
             result["ok"] = True
-            result["detail"] = "Token tanımlı değil — simülasyon modu aktif."
+            result["detail"] = "Token tanimli degil — simulasyon modu aktif."
 
     elif name == "Shopify":
         result["ok"] = True
-        result["detail"] = "Shopify webhook simülasyonu aktif."
+        result["detail"] = "Shopify webhook simulasyonu aktif."
 
     elif name == "ChromaDB":
         result["ok"] = True
-        result["detail"] = "ChromaDB vektör veritabanı hazır."
+        result["detail"] = "ChromaDB vektor veritabani hazir."
 
     else:
         result["ok"] = True
-        result["detail"] = f"{name} bağlantısı simüle edildi."
+        result["detail"] = f"{name} baglantisi simule edildi."
 
     return result

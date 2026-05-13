@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
-import { conversations, Conversation } from "@/lib/mock-data";
+import { Conversation } from "@/lib/mock-data";
 import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
@@ -36,11 +36,11 @@ function displaySentiment(sentiment: Conversation["sentiment"]) {
 }
 
 export default function InboxPage() {
-  const [convos, setConvos] = useState<Conversation[]>(conversations);
-  const [selectedId, setSelectedId] = useState(conversations[0].id);
-  const [draftText, setDraftText] = useState<Record<string, string>>(
-    Object.fromEntries(conversations.map(c => [c.id, c.aiDraft]))
-  );
+  const [convos, setConvos] = useState<Conversation[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [draftText, setDraftText] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  
   const [sending, setSending] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
@@ -50,7 +50,22 @@ export default function InboxPage() {
   const [kbContent, setKbContent] = useState("");
   const [kbSaving, setKbSaving] = useState(false);
 
-  const selected = convos.find(c => c.id === selectedId)!;
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then(res => res.json())
+      .then((data: Conversation[]) => {
+        setConvos(data);
+        if (data.length > 0) {
+          setSelectedId(data[0].id);
+          const initialDrafts = Object.fromEntries(data.map(c => [c.id, c.aiDraft || ""]));
+          setDraftText(initialDrafts);
+        }
+      })
+      .catch(err => showToast("Konuşmalar yüklenemedi", "error"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const selected = convos.find(c => c.id === selectedId);
   const openCount = convos.filter(c => c.status !== "Cozuldu").length;
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -59,6 +74,7 @@ export default function InboxPage() {
   };
 
   const handleGenerateDraft = async () => {
+    if (!selected) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/ai-draft", {
@@ -75,6 +91,14 @@ export default function InboxPage() {
       const data = await res.json().catch(() => null);
       if (res.ok && data.draft) {
         setDraftText(prev => ({ ...prev, [selected.id]: data.draft }));
+        
+        // Taslagi DB'ye de kaydet
+        await fetch(`/api/conversations/${selected.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aiDraft: data.draft })
+        });
+        
         showToast("Gemini ile yeni taslak oluşturuldu.");
       } else {
         throw new Error(apiErrorMessage(data, "Gemini taslağı oluşturulamadı."));
@@ -86,23 +110,63 @@ export default function InboxPage() {
   };
 
   const handleSend = async () => {
+    if (!selected) return;
     setSending(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setConvos(prev => prev.map(c =>
-      c.id === selectedId ? { ...c, status: "Cozuldu", unread: 0 } : c
-    ));
-    showToast(`Yanıt ${selected.customer}'a gönderildi.`);
-    setSending(false);
+    
+    const draftContent = draftText[selected.id];
+    const notifyPayload = selected.channel === "WhatsApp" ? { wpText: draftContent } : { slackText: draftContent };
+    
+    try {
+      // 1. Notify API cagirisi
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifyPayload)
+      });
+      
+      // 2. Conversation durumunu guncelle
+      const res = await fetch(`/api/conversations/${selected.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Cozuldu", unread: 0, aiDraft: draftContent })
+      });
+      
+      if (!res.ok) throw new Error("Durum güncellenemedi");
+      
+      setConvos(prev => prev.map(c =>
+        c.id === selectedId ? { ...c, status: "Cozuldu", unread: 0, aiDraft: draftContent } : c
+      ));
+      
+      showToast(`Yanıt ${selected.customer}'a gönderildi.`);
+    } catch (e) {
+      showToast("Yanıt gönderilirken hata oluştu", "error");
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleDelegate = () => {
-    setConvos(prev => prev.map(c =>
-      c.id === selectedId ? { ...c, status: "Temsilci Bekliyor" } : c
-    ));
-    showToast("Konuşma temsilciye devredildi.");
+  const handleDelegate = async () => {
+    if (!selected) return;
+    try {
+      const res = await fetch(`/api/conversations/${selected.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Temsilci Bekliyor" })
+      });
+      
+      if (!res.ok) throw new Error("Durum güncellenemedi");
+      
+      setConvos(prev => prev.map(c =>
+        c.id === selectedId ? { ...c, status: "Temsilci Bekliyor" } : c
+      ));
+      showToast("Konuşma temsilciye devredildi.");
+    } catch (e) {
+      showToast("İşlem sırasında hata oluştu", "error");
+    }
   };
 
   const handleAddToKb = () => {
+    if (!selected) return;
     setKbTitle(`${selected.customer} - ${selected.topic} Sorusu`);
     setKbContent(draftText[selected.id] ?? "");
     setShowKbModal(true);
@@ -133,6 +197,22 @@ export default function InboxPage() {
       setKbSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <PageShell title="AI Yardım Masası" subtitle="Kanal bazlı talepler, duygu sinyalleri ve AI yanıt taslakları.">
+        <p style={{ padding: "2rem", color: "var(--text-muted)" }}>Konuşmalar yükleniyor...</p>
+      </PageShell>
+    );
+  }
+
+  if (!selected) {
+    return (
+      <PageShell title="AI Yardım Masası" subtitle="Kanal bazlı talepler, duygu sinyalleri ve AI yanıt taslakları.">
+        <p style={{ padding: "2rem", color: "var(--text-muted)" }}>Görüntülenecek konuşma yok.</p>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -199,7 +279,7 @@ export default function InboxPage() {
                   {c.unread > 0 && <span className="pill mid">{c.unread} okunmadı</span>}
                 </div>
                 <div className="muted" style={{ marginTop: 7, fontSize: "0.72rem" }}>
-                  {c.updatedAt.split("T")[1].slice(0, 5)} · {c.orderRef ? `Sipariş ${c.orderRef}` : "Sipariş yok"}
+                  {c.updatedAt ? c.updatedAt.split("T")[1]?.slice(0, 5) : ""} · {c.orderRef ? `Sipariş ${c.orderRef}` : "Sipariş yok"}
                 </div>
               </article>
             ))}
@@ -238,7 +318,7 @@ export default function InboxPage() {
 
           <textarea
             className="form-input"
-            value={draftText[selected.id]}
+            value={draftText[selected.id] ?? ""}
             onChange={e => setDraftText(prev => ({ ...prev, [selected.id]: e.target.value }))}
             rows={6}
             style={{ marginBottom: 16 }}

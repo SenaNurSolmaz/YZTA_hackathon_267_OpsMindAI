@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
-import { tasks as initialTasks } from "@/lib/mock-data";
+
 
 type Task = { id: string; title: string; owner: string; due: string; reason: string; status: string };
 type Toast = { msg: string; type: "success" | "error" } | null;
@@ -31,12 +31,11 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetch("/api/tasks").then(r => r.json()).then((data: Task[]) => {
-      setTasks(data);
-      if (data.length > 0) setSelectedTaskId(data[0].id);
-    }).catch(() => {
-      setTasks(initialTasks as Task[]);
-      setSelectedTaskId(initialTasks[0].id);
-    });
+      if (Array.isArray(data)) {
+        setTasks(data);
+        if (data.length > 0) setSelectedTaskId(data[0].id);
+      }
+    }).catch(() => {});
   }, []);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {

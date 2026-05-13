@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, type ReactElement } from "react";
 import { PageShell } from "@/components/page-shell";
-import { kpis as defaultKpis, aiInsight as defaultInsight, recentOrders as defaultOrders, tasks as defaultTasks, activityFeed as defaultActivity } from "@/lib/mock-data";
 
 function formatTry(n: number) {
   return new Intl.NumberFormat("tr-TR", {
@@ -17,27 +16,27 @@ function displayFulfillment(status: string) {
 }
 
 type DashboardData = {
-  kpis: typeof defaultKpis;
-  recentOrders: typeof defaultOrders;
-  tasks: typeof defaultTasks;
-  activityFeed: typeof defaultActivity;
+  kpis: { todayOrders: number, revenueTry: number, riskyShipments: number, autoResolvedTickets: number, lowStockSkus: number, avgFirstResponseMin: number };
+  recentOrders: { id: string; name: string; customer: string; city: string; product: string; totalTry: number; fulfillmentStatus: string }[];
+  tasks: { id: string; title: string; owner: string; due: string }[];
+  activityFeed: { time: string; text: string }[];
   fulfillmentMix: { label: string; pct: number; className: string }[];
   aiInsight: string;
 };
 
 export default function HomePage(): ReactElement {
   const [data, setData] = useState<DashboardData>({
-    kpis: defaultKpis,
-    recentOrders: defaultOrders,
-    tasks: defaultTasks,
-    activityFeed: defaultActivity,
+    kpis: { todayOrders: 0, revenueTry: 0, riskyShipments: 0, autoResolvedTickets: 0, lowStockSkus: 0, avgFirstResponseMin: 0 },
+    recentOrders: [],
+    tasks: [],
+    activityFeed: [],
     fulfillmentMix: [
       { label: "Kargoda", pct: 42, className: "shipped" },
       { label: "Hazırlanıyor", pct: 28, className: "preparing" },
       { label: "Gecikme", pct: 12, className: "delayed" },
       { label: "Teslim", pct: 18, className: "delivered" }
     ],
-    aiInsight: defaultInsight,
+    aiInsight: "Yükleniyor...",
   });
 
   useEffect(() => {

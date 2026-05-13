@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
-import { shipments, Shipment } from "@/lib/mock-data";
+import { Shipment } from "@/lib/mock-data";
 import { apiErrorMessage } from "@/lib/api-error";
 
 type Toast = { msg: string; type: "success" | "error" } | null;
@@ -25,36 +25,26 @@ function displayRisk(risk: Shipment["risk"] | RiskFilter) {
 }
 
 export default function ShippingPage() {
-  const [data, setData] = useState<Shipment[]>(shipments);
+  const [data, setData] = useState<Shipment[]>([]);
   const [notifying, setNotifying] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
   const [filterRisk, setFilterRisk] = useState<RiskFilter>("Tumu");
-  const [selectedShipmentKey, setSelectedShipmentKey] = useState(shipmentKey(shipments[0]));
+  const [selectedShipmentKey, setSelectedShipmentKey] = useState("");
 
   useEffect(() => {
     fetch("/api/shipping").then(r => r.json()).then((res) => {
       if (Array.isArray(res) && res.length > 0) {
         setData(res as Shipment[]);
         setSelectedShipmentKey(shipmentKey(res[0] as Shipment));
-      } else {
-        setData(shipments);
-        setSelectedShipmentKey(shipmentKey(shipments[0]));
       }
-    }).catch(() => {
-      setData(shipments);
-      setSelectedShipmentKey(shipmentKey(shipments[0]));
-    });
+    }).catch(() => {});
   }, []);
 
   const critical = data.filter(s => s.risk === "Yuksek").length;
   const filtered = filterRisk === "Tumu" ? data : data.filter(s => s.risk === filterRisk);
-  const selectedShipment =
-    filtered.find(s => shipmentKey(s) === selectedShipmentKey) ??
-    filtered[0] ??
-    data[0] ??
-    shipments[0];
-  const selectedKey = shipmentKey(selectedShipment);
+  const selectedShipment = data.find(s => shipmentKey(s) === selectedShipmentKey) ?? filtered[0] ?? data[0] ?? null;
+  const selectedKey = selectedShipment ? shipmentKey(selectedShipment) : "";
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -130,13 +120,15 @@ export default function ShippingPage() {
         <div className="context-stack">
           <div className="context-card context-card--warm">
             <p className="context-kicker">Riskli gönderi</p>
-            <h3 className="context-title">{selectedShipment.orderId} · {selectedShipment.customer}</h3>
-            <div className="context-list">
-              <div className="context-row"><span>Varış</span><strong>{selectedShipment.destination}</strong></div>
-              <div className="context-row"><span>SLA</span><strong>{selectedShipment.slaHoursLeft > 0 ? "+" : ""}{selectedShipment.slaHoursLeft}s</strong></div>
-              <div className="context-row"><span>Firma</span><strong>{selectedShipment.provider}</strong></div>
-              <div className="context-row"><span>Risk</span><strong>{displayRisk(selectedShipment.risk)}</strong></div>
-            </div>
+            <h3 className="context-title">{selectedShipment?.orderId} · {selectedShipment?.customer}</h3>
+            {selectedShipment && (
+              <div className="context-list">
+                <div className="context-row"><span>Varış</span><strong>{selectedShipment.destination}</strong></div>
+                <div className="context-row"><span>SLA</span><strong>{selectedShipment.slaHoursLeft > 0 ? "+" : ""}{selectedShipment.slaHoursLeft}s</strong></div>
+                <div className="context-row"><span>Firma</span><strong>{selectedShipment.provider}</strong></div>
+                <div className="context-row"><span>Risk</span><strong>{displayRisk(selectedShipment.risk)}</strong></div>
+              </div>
+            )}
           </div>
           <div className="context-card">
             <p className="context-kicker">Önerilen aksiyon</p>

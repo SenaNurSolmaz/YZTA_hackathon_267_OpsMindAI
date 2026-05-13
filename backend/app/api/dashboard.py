@@ -1,60 +1,130 @@
 from fastapi import APIRouter
-from typing import List, Dict, Any
+from app.db import get_db
 
 router = APIRouter()
 
-_orders = [
-    {"id": "ord-1842", "name": "#1842", "customer": "Elif Yılmaz", "city": "İzmir", "totalTry": 18990, "paymentStatus": "Odendi", "fulfillmentStatus": "Kargoda", "itemCount": 1, "channel": "Web", "product": "Meta Quest 3 128GB", "createdAt": "2026-05-11T08:12:00"},
-    {"id": "ord-1841", "name": "#1841", "customer": "Mert Kaya", "city": "Ankara", "totalTry": 8490, "paymentStatus": "Odendi", "fulfillmentStatus": "Hazirlaniyor", "itemCount": 2, "channel": "WhatsApp", "product": "Samsung Galaxy Ring + Kılıf", "createdAt": "2026-05-11T07:55:00"},
-    {"id": "ord-1840", "name": "#1840", "customer": "Deniz Arslan", "city": "İstanbul", "totalTry": 52900, "paymentStatus": "Odendi", "fulfillmentStatus": "Gecikme", "itemCount": 1, "channel": "Web", "product": "Apple Vision Pro", "createdAt": "2026-05-10T21:40:00"},
-    {"id": "ord-1839", "name": "#1839", "customer": "Burak Çelik", "city": "Bursa", "totalTry": 4290, "paymentStatus": "Beklemede", "fulfillmentStatus": "Hazirlaniyor", "itemCount": 1, "channel": "Fiziksel", "product": "Garmin Fenix 8", "createdAt": "2026-05-10T18:05:00"},
-]
-
-_activity = [
-    {"time": "14:22", "text": "AI #128 Meta Quest kargosu için WhatsApp taslağı üretti."},
-    {"time": "13:58", "text": "Stok alarmı: Samsung Galaxy Ring 3 günlük eşiğe indi."},
-    {"time": "13:12", "text": "Kargo webhook: #151 Apple Vision Pro gümrük gecikmesinde."},
-    {"time": "12:40", "text": "Slack #kargo kanalına 2 yeni risk özeti gönderildi."},
-]
-
-router_api = router
 
 @router.get("/dashboard")
 async def get_dashboard():
-    from app.api.shipping import _store as shipments
-    from app.api.inventory import _store as inventory
-    from app.api.tasks import _store as tasks
+    db = await get_db()
 
-    risky = len([s for s in shipments if s.get("risk") == "Yuksek"])
-    low_stock = len([i for i in inventory if i["stock"] <= i["reorderPoint"] or i["depletionDays"] <= 7])
-    open_tasks = len([t for t in tasks if t["status"] == "Acik"])
-    total_revenue = sum(o["totalTry"] for o in _orders)
+    # KPI'lar
+    kpi_row = await db.query(
+        """
+        SELECT
+            COUNT(*)                                          AS today_orders,
+            COALESCE(SUM(total_try), 0)                       AS revenue_try,
+            COUNT(*) FILTER (WHERE fulfillment_status != 'Teslim') AS active_orders
+        FROM orders
+        WHERE created_at >= now() - INTERVAL '24 hours'
+        """
+    )
 
-    fulfillment_counts = {"Kargoda": 0, "Hazirlaniyor": 0, "Gecikme": 0, "Teslim": 0}
-    for o in _orders:
-        key = o["fulfillmentStatus"]
-        if key in fulfillment_counts:
-            fulfillment_counts[key] += 1
-    total_orders = len(_orders) or 1
+    kpi = kpi_row[0] if kpi_row else {}
+    today_orders = int(kpi.get("today_orders") or 0)
+    revenue_try = float(kpi.get("revenue_try") or 0)
+
+    # Riskli kargo sayisi
+    risky_rows = await db.query(
+        "SELECT COUNT(*) AS cnt FROM shipments WHERE risk = 'Yuksek'"
+    )
+    risky_shipments = int(risky_rows[0]["cnt"]) if risky_rows else 0
+
+    # Kritik SKU sayisi (stok esik altinda veya 7 gunde tukeniyor)
+    low_stock_rows = await db.query(
+        "SELECT COUNT(*) AS cnt FROM inventory WHERE stock <= reorder_point OR depletion_days <= 7"
+    )
+    low_stock_skus = int(low_stock_rows[0]["cnt"]) if low_stock_rows else 0
+
+    # Cozulmus konusma sayisi
+    resolved_rows = await db.query(
+        "SELECT COUNT(*) AS cnt FROM conversations WHERE status = 'Cozuldu'"
+    )
+    auto_resolved = int(resolved_rows[0]["cnt"]) if resolved_rows else 0
+
+    # Son siparisler
+    order_rows = await db.query(
+        """
+        SELECT
+            id, name, customer, city,
+            total_try          AS "totalTry",
+            payment_status     AS "paymentStatus",
+            fulfillment_status AS "fulfillmentStatus",
+            item_count         AS "itemCount",
+            channel, product,
+            created_at         AS "createdAt"
+        FROM orders
+        ORDER BY created_at DESC
+        LIMIT 10
+        """
+    )
+    recent_orders = []
+    for r in order_rows:
+        item = dict(r)
+        if "totalTry" in item:
+            item["totalTry"] = float(item["totalTry"])
+        if "createdAt" in item and hasattr(item["createdAt"], "isoformat"):
+            item["createdAt"] = item["createdAt"].isoformat()
+        recent_orders.append(item)
+
+    # Acik gorevler
+    task_rows = await db.query(
+        """
+        SELECT id, title, owner, due, reason, status
+        FROM tasks
+        WHERE status = 'Acik'
+        ORDER BY created_at ASC
+        LIMIT 5
+        """
+    )
+
+    # Aktivite logu
+    activity_rows = await db.query(
+        """
+        SELECT
+            to_char(event_time AT TIME ZONE 'Europe/Istanbul', 'HH24:MI') AS time,
+            text
+        FROM activity_log
+        ORDER BY event_time DESC
+        LIMIT 10
+        """
+    )
+
+    # Fulfillment dagilimi
+    ff_rows = await db.query(
+        """
+        SELECT fulfillment_status, COUNT(*) AS cnt
+        FROM orders
+        GROUP BY fulfillment_status
+        """
+    )
+    ff_map = {r["fulfillment_status"]: int(r["cnt"]) for r in ff_rows}
+    total_ff = sum(ff_map.values()) or 1
     fulfillment_mix = [
-        {"label": "Kargoda", "pct": round(fulfillment_counts["Kargoda"] / total_orders * 100), "className": "shipped"},
-        {"label": "Hazırlanıyor", "pct": round(fulfillment_counts["Hazirlaniyor"] / total_orders * 100), "className": "preparing"},
-        {"label": "Gecikme", "pct": round(fulfillment_counts["Gecikme"] / total_orders * 100), "className": "delayed"},
-        {"label": "Teslim", "pct": round(fulfillment_counts["Teslim"] / total_orders * 100), "className": "delivered"},
+        {"label": "Kargoda",      "pct": round(ff_map.get("Kargoda", 0) / total_ff * 100),      "className": "shipped"},
+        {"label": "Hazirlanıyor", "pct": round(ff_map.get("Hazirlaniyor", 0) / total_ff * 100),  "className": "preparing"},
+        {"label": "Gecikme",      "pct": round(ff_map.get("Gecikme", 0) / total_ff * 100),       "className": "delayed"},
+        {"label": "Teslim",       "pct": round(ff_map.get("Teslim", 0) / total_ff * 100),        "className": "delivered"},
     ]
+
+    open_task_count = len([r for r in task_rows])
 
     return {
         "kpis": {
-            "todayOrders": 63,
-            "revenueTry": 284750,
-            "riskyShipments": risky,
-            "lowStockSkus": low_stock,
-            "autoResolvedTickets": 51,
+            "todayOrders": today_orders,
+            "revenueTry": revenue_try,
+            "riskyShipments": risky_shipments,
+            "lowStockSkus": low_stock_skus,
+            "autoResolvedTickets": auto_resolved,
             "avgFirstResponseMin": 3.8,
         },
-        "recentOrders": _orders,
-        "tasks": [t for t in tasks if t["status"] == "Acik"][:5],
-        "activityFeed": _activity,
+        "recentOrders": recent_orders,
+        "tasks": [dict(r) for r in task_rows],
+        "activityFeed": [dict(r) for r in activity_rows],
         "fulfillmentMix": fulfillment_mix,
-        "aiInsight": f"Son 24 saatte {risky} riskli kargo ve {low_stock} kritik SKU tespit edildi. {open_tasks} açık görev takip ediliyor.",
+        "aiInsight": (
+            f"Son 24 saatte {risky_shipments} riskli kargo ve "
+            f"{low_stock_skus} kritik SKU tespit edildi. "
+            f"{open_task_count} acik gorev takip ediliyor."
+        ),
     }
