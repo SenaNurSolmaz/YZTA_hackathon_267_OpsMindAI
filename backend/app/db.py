@@ -14,7 +14,7 @@ def row_to_camel(row: Dict[str, Any]) -> Dict[str, Any]:
     result = {}
     for k, v in row.items():
         camel_key = _to_camel(k)
-        # Decimal, date gibi serialize edilemeyen tipleri donustur
+
         if hasattr(v, "__float__"):
             result[camel_key] = float(v)
         elif hasattr(v, "isoformat"):

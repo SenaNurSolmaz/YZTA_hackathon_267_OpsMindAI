@@ -46,7 +46,7 @@ async def get_users():
 @router.post("/users")
 async def create_user(req: UserCreate):
     db = await get_db()
-    # Email unique kontrolu
+
     existing = await db.query("SELECT id FROM users WHERE email = $1", req.email)
     if existing:
         raise HTTPException(status_code=409, detail="Bu e-posta zaten kayitli")

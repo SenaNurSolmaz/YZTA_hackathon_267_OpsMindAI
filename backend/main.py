@@ -21,7 +21,6 @@ from app.api.orders import router as orders_router
 from app.api.conversations import router as conversations_router
 from app.api.activity_log import router as activity_log_router
 
-# Load .env.local from project root (Next.js convention), fallback to .env
 project_root = Path(__file__).resolve().parent.parent
 env_local = project_root / ".env.local"
 env_file = project_root / ".env"
@@ -36,11 +35,9 @@ else:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Uygulama baslarken DB baglantisini kur
     from app.db import db
     await db.connect()
     yield
-    # Uygulama kapanirken DB baglantisini kapat
     await db.disconnect()
 
 

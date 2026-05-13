@@ -25,7 +25,7 @@ export function Navigation() {
   return (
     <aside className={`sidebar ${collapsed ? "sidebar--collapsed" : ""}`}>
       <div className="sidebar-brand">
-        <div className="brand-mark" aria-hidden />
+        <img src="/logo.png" alt="OpsMind Logo" className="brand-mark" style={{ width: "auto", height: 32, borderRadius: 8, objectFit: "contain" }} />
         <div className="brand-copy">
           <h2 className="brand-title">OpsMind AI</h2>
           <p className="brand-tagline">Operasyon Platformu</p>
@@ -64,22 +64,21 @@ export function Navigation() {
 
       <div className="sidebar-footer">
         <div className="sidebar-user">
-          <div className="user-avatar">{user.avatar}</div>
+          <div className="user-avatar" style={{ overflow: "hidden" }}>
+            {user.avatar.startsWith("/") ? (
+              <img src={user.avatar} alt={user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              user.avatar
+            )}
+          </div>
           <div className="user-info">
             <p className="user-name">{user.name}</p>
             <p className="user-role">{user.role} · {user.department}</p>
           </div>
         </div>
         <button type="button" className="logout-btn" onClick={logout}>
-          Çıkış Yap
+          Cikis Yap
         </button>
-        <div className="sidebar-integration" title="Entegrasyonlar aktif">
-          <span className="status-dot" aria-hidden />
-          <div>
-            <p className="sidebar-integration__title">Entegrasyonlar aktif</p>
-            <p className="sidebar-integration__meta">Shopify, Slack, WhatsApp</p>
-          </div>
-        </div>
       </div>
     </aside>
   );

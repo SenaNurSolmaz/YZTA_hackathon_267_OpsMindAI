@@ -22,9 +22,9 @@ async def generate_ai_draft(req: AIDraftRequest):
     api_key = os.getenv("GEMINI_API_KEY")
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     
-    if not api_key:
-        print("[ai-draft] GEMINI_API_KEY tanımlı değil.")
-        raise HTTPException(status_code=500, detail="Gemini API anahtarı tanımlı değil. .env.local dosyasını kontrol edin.")
+    if not api_key or api_key == "SIMULATION_KEY" or api_key.strip() == "":
+        print("[ai-draft] GEMINI_API_KEY tanımlı değil veya simülasyon modunda. Simülasyon taslağı üretiliyor.")
+        return {"draft": f"Merhaba {req.customer}, {req.topic} ile ilgili talebiniz tarafımıza ulaşmıştır. En kısa sürede çözüm sağlanacaktır. Bizi tercih ettiğiniz için teşekkür ederiz."}
         
     genai.configure(api_key=api_key)
     

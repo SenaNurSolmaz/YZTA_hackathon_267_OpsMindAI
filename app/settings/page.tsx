@@ -14,12 +14,14 @@ const tabs = [
 ] as const;
 
 const integrations = [
-  { name: "Shopify", desc: "E-ticaret sipariş entegrasyonu", connected: true, icon: "SH" },
-  { name: "WhatsApp Business", desc: "Müşteri mesajlaşma kanalı", connected: true, icon: "WA" },
-  { name: "Slack", desc: "Ekip bildirimleri ve kargo uyarıları", connected: true, icon: "SL" },
-  { name: "Yurtiçi Kargo API", desc: "Kargo takip entegrasyonu", connected: false, icon: "YK" },
-  { name: "Aras Kargo API", desc: "Kargo takip entegrasyonu", connected: false, icon: "AR" },
-  { name: "ChromaDB", desc: "Vektörel bilgi tabanı (RAG)", connected: true, icon: "DB" },
+  { name: "Shopify", desc: "Guncel durumu magazaya webhook ile yansit", connected: true, icon: "SH" },
+  { name: "WhatsApp Business", desc: "Musteri mesajlasma kanali", connected: true, icon: "WA" },
+  { name: "Slack", desc: "Ekip bildirimleri ve kargo uyarilari", connected: true, icon: "SL" },
+  { name: "Yurtici Kargo API", desc: "Kargo takip entegrasyonu", connected: true, icon: "YK" },
+  { name: "Aras Kargo API", desc: "Kargo takip entegrasyonu", connected: true, icon: "AR" },
+  { name: "MNG Kargo API", desc: "Kargo takip entegrasyonu", connected: true, icon: "MN" },
+  { name: "PTT Kargo API", desc: "Kargo takip entegrasyonu", connected: true, icon: "PT" },
+  { name: "Surat Kargo API", desc: "Kargo takip entegrasyonu", connected: true, icon: "SR" },
 ];
 
 const setupChecklist = [
@@ -30,11 +32,10 @@ const setupChecklist = [
 ] as const;
 
 const notificationItems = [
-  { key: "cargo_high", label: "Yüksek riskli kargo uyarısı", target: "WhatsApp" },
-  { key: "stock_low", label: "Stok eşik altı bildirimi", target: "Slack" },
-  { key: "ai_draft", label: "AI taslağı hazır olduğunda", target: "E-posta" },
-  { key: "daily_summary", label: "Günlük operasyon özeti", target: "Slack" },
-  { key: "sentiment_neg", label: "Müşteri olumsuz sentiment alarmı", target: "WhatsApp" },
+  { key: "cargo_high", label: "Yuksek riskli kargo uyarisi", target: "WhatsApp" },
+  { key: "stock_low", label: "Stok esik alti bildirimi", target: "Slack" },
+  { key: "ai_draft", label: "AI taslagi hazir oldugunda", target: "E-posta" },
+  { key: "daily_summary", label: "Gunluk operasyon ozeti", target: "Slack" },
 ];
 
 function integrationEnvLabel(name: string) {
@@ -65,6 +66,12 @@ export default function SettingsPage() {
   const [selectedNotificationKey, setSelectedNotificationKey] = useState(notificationItems[0].key);
   const [notifPrefs, setNotifPrefs] = useState(notificationItems.map(n => ({ ...n, enabled: true })));
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [editingRules, setEditingRules] = useState(false);
+  const [aiRules, setAiRules] = useState([
+    { title: "Riskli kargo", desc: "SLA negatifse musteriye proaktif bilgilendirme taslagi hazirla." },
+    { title: "Kritik stok", desc: "Tukenme 7 gun altina duserse satin alma ekibine gorev olustur." },
+    { title: "Olumsuz duygu", desc: "Musteri mesajinda olumsuz sinyal varsa temsilciye devretmeyi oner." },
+  ]);
 
   useEffect(() => {
     fetch("/api/users").then(r => r.json()).then(data => {
@@ -404,22 +411,6 @@ export default function SettingsPage() {
                 </button>
               </div>
             </section>
-
-            <section className="status-panel">
-              <div className="section-heading">
-                <h3>Kurulum kontrolü</h3>
-                <span className="pill info">2/4 tamam</span>
-              </div>
-              <div className="checklist">
-                {setupChecklist.map(item => (
-                  <div className="checklist-item" key={item.label}>
-                    <span className={`checkmark ${item.tone}`}>{item.mark}</span>
-                    <span>{item.label}</span>
-                    <span className={`pill ${item.tone}`}>{item.status}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
 
           <div className="grid grid-3">
@@ -447,7 +438,7 @@ export default function SettingsPage() {
                     className={`button sm ${intg.connected ? "secondary" : ""}`}
                     onClick={(e) => { e.stopPropagation(); setSelectedIntegrationName(intg.name); testIntegration(intg.name); }}
                   >
-                    {intg.connected ? "Bağlantıyı Test Et" : "Bağlan"}
+                    {intg.connected ? "Webhook" : "Baglan"}
                   </button>
                   {intg.connected && (
                     <button
@@ -499,25 +490,43 @@ export default function SettingsPage() {
 
           <section className="rules-panel">
             <div className="section-heading">
-              <h3>AI Kuralları</h3>
-              <span className="pill low">Aktif</span>
+              <h3>AI Kurallari</h3>
+              <button
+                type="button"
+                className="button sm secondary"
+                onClick={() => setEditingRules(!editingRules)}
+              >
+                {editingRules ? "Kaydet" : "Duzenle"}
+              </button>
             </div>
             <p className="muted" style={{ margin: 0 }}>
-              Yanıt taslakları ve operasyon önerileri için temel güvenlik ve eskalasyon kuralları.
+              Yanit taslaklari ve operasyon onerileri icin temel guvenlik ve eskalasyon kurallari.
             </p>
             <div className="rule-list">
-              <div className="rule-item">
-                <strong>Riskli kargo</strong>
-                <p className="muted" style={{ margin: 0 }}>SLA negatifse müşteriye proaktif bilgilendirme taslağı hazırla.</p>
-              </div>
-              <div className="rule-item">
-                <strong>Kritik stok</strong>
-                <p className="muted" style={{ margin: 0 }}>Tükenme 7 gün altına düşerse satın alma ekibine görev oluştur.</p>
-              </div>
-              <div className="rule-item">
-                <strong>Olumsuz duygu</strong>
-                <p className="muted" style={{ margin: 0 }}>Müşteri mesajında olumsuz sinyal varsa temsilciye devretmeyi öner.</p>
-              </div>
+              {aiRules.map((rule, idx) => (
+                <div className="rule-item" key={idx}>
+                  {editingRules ? (
+                    <>
+                      <input
+                        className="form-input"
+                        value={rule.title}
+                        onChange={e => setAiRules(prev => prev.map((r, i) => i === idx ? { ...r, title: e.target.value } : r))}
+                        style={{ fontWeight: 600, marginBottom: 4 }}
+                      />
+                      <input
+                        className="form-input"
+                        value={rule.desc}
+                        onChange={e => setAiRules(prev => prev.map((r, i) => i === idx ? { ...r, desc: e.target.value } : r))}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <strong>{rule.title}</strong>
+                      <p className="muted" style={{ margin: 0 }}>{rule.desc}</p>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
         </div>

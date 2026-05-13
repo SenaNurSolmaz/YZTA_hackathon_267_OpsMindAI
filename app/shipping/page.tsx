@@ -73,9 +73,9 @@ export default function ShippingPage() {
       const result = await res.json().catch(() => null);
       if (res.ok && result?.ok !== false) {
         if (result?.mode === "simulation") {
-          showToast(`Bildirim simulasyonu basarili (${riskyOrders}). Gercek gonderim icin Ayarlar > Entegrasyonlar'i kontrol edin.`);
+          showToast(`whatsapp+slack üzerinden mesaj gönderildi (simülasyon)`);
         } else {
-          showToast(`WhatsApp + Slack bildirimi gonderildi: ${riskyOrders}`);
+          showToast(`whatsapp+slack üzerinden mesaj gönderildi`);
         }
       } else {
         throw new Error(apiErrorMessage(result, "Bildirim gonderilemedi."));
@@ -103,7 +103,7 @@ export default function ShippingPage() {
   return (
     <PageShell
       title="Kargo Takibi"
-      subtitle="Takip numarası, SLA ve son olaylar ile riskli gönderileri yönetin."
+      subtitle=""
       badge={`${critical} kritik`}
       rightPanel={
         <div className="context-stack">
@@ -172,7 +172,7 @@ export default function ShippingPage() {
               onClick={handleNotify}
               disabled={notifying}
             >
-              {notifying ? "Gönderiliyor..." : "Proaktif Bilgilendirme"}
+              {notifying ? "Gonderiliyor..." : "Bilgilendirme"}
             </button>
             <button
               type="button"

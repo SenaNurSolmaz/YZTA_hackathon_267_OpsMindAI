@@ -19,9 +19,9 @@ async def generate_agent_response(req: AgentRequest):
     api_key = os.getenv("GEMINI_API_KEY")
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     
-    if not api_key:
-        print("[agent] GEMINI_API_KEY tanımlı değil.")
-        raise HTTPException(status_code=500, detail="Gemini API anahtarı tanımlı değil. .env.local dosyasını kontrol edin.")
+    if not api_key or api_key == "SIMULATION_KEY" or api_key.strip() == "":
+        print("[agent] GEMINI_API_KEY tanımlı değil veya simülasyon modunda. Simülasyon yanıtı üretiliyor.")
+        return {"result": f"Simulasyon yaniti: Bilgi tabaninda '{req.prompt}' ile ilgili asagidaki bilgileri buldum: {req.context[:100]}..."}
         
     genai.configure(api_key=api_key)
     

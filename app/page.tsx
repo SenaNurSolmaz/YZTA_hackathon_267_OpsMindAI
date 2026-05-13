@@ -25,6 +25,8 @@ type DashboardData = {
 };
 
 export default function HomePage(): ReactElement {
+  const [notifying, setNotifying] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [data, setData] = useState<DashboardData>({
     kpis: { todayOrders: 0, revenueTry: 0, riskyShipments: 0, autoResolvedTickets: 0, lowStockSkus: 0, avgFirstResponseMin: 0 },
     recentOrders: [],
@@ -82,12 +84,38 @@ export default function HomePage(): ReactElement {
       <div className="insight-banner">
         <div className="insight-content">
           <div>
-            <p className="insight-banner__label">AI Özet</p>
+            <p className="insight-banner__label">AI Ozet</p>
             <p>{aiInsight}</p>
           </div>
           <div className="insight-side">
             <span className="pill mid">Risk seviyesi: Orta</span>
-            <span className="pill info">Öneri: Kargo ekibini bilgilendir</span>
+            <button
+              type="button"
+              className="button sm"
+              disabled={notifying}
+              onClick={async () => {
+                setNotifying(true);
+                try {
+                  const res = await fetch("/api/notify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ slackText: `*OpsMind AI Bilgilendirme*\n${aiInsight}` }),
+                  });
+                  const result = await res.json().catch(() => null);
+                  if (result?.mode === "simulation") {
+                    setToast({ msg: "Bilgilendirme simulasyonu basarili.", type: "success" });
+                  } else {
+                    setToast({ msg: "Kargo ekibi bilgilendirildi.", type: "success" });
+                  }
+                } catch {
+                  setToast({ msg: "Bilgilendirme gonderilemedi.", type: "error" });
+                }
+                setNotifying(false);
+                setTimeout(() => setToast(null), 3000);
+              }}
+            >
+              {notifying ? "Gonderiliyor..." : "Kargo Ekibini Bilgilendir"}
+            </button>
           </div>
         </div>
       </div>
@@ -113,7 +141,7 @@ export default function HomePage(): ReactElement {
               <p className="card__eyebrow">Ciro bugün</p>
               <p className="kpi">{formatTry(kpis.revenueTry)}</p>
             </div>
-            <span className="metric-icon">₺</span>
+            <span className="metric-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", paddingTop: "2px" }}>₺</span>
           </div>
           <p className="metric-note">KDV dahil tamamlanan ödeme</p>
         </article>
@@ -236,6 +264,7 @@ export default function HomePage(): ReactElement {
           ))}
         </ul>
       </section>
+      {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
     </PageShell>
   );
 }

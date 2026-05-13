@@ -15,6 +15,11 @@ export default function KnowledgeBasePage() {
   const [form, setForm] = useState({ title: "", content: "", category: "Teknik Destek" });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string>("");
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatHistory, setChatHistory] = useState<{role: "user" | "ai", text: string}[]>([
+    { role: "ai", text: "Merhaba! Bilgi tabanındaki kayıtlara dayanarak size nasıl yardımcı olabilirim?" }
+  ]);
 
   useEffect(() => {
     fetch("/api/knowledge")
@@ -24,7 +29,7 @@ export default function KnowledgeBasePage() {
         if (data.length > 0) setSelectedEntryId(data[0].id);
       })
       .catch(() => showToast("Veriler yüklenemedi.", "error"));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, []);
 
   const categories = ["Tumu", ...Array.from(new Set(entries.map(e => e.category)))];
@@ -91,35 +96,61 @@ export default function KnowledgeBasePage() {
     }
   };
 
+  const handleChat = async () => {
+    if (!chatInput.trim()) return;
+    const prompt = chatInput.trim();
+    setChatInput("");
+    setChatHistory(prev => [...prev, { role: "user", text: prompt }]);
+    setChatLoading(true);
+
+    const context = entries.map(e => `Başlık: ${e.title}\nKategori: ${e.category}\nİçerik: ${e.content}`).join("\n\n---\n\n");
+
+    try {
+      const res = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, context }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data.result) {
+        setChatHistory(prev => [...prev, { role: "ai", text: data.result }]);
+      } else {
+        setChatHistory(prev => [...prev, { role: "ai", text: "Üzgünüm, bir hata oluştu ve yanıt oluşturulamadı." }]);
+      }
+    } catch {
+      setChatHistory(prev => [...prev, { role: "ai", text: "Bağlantı hatası oluştu." }]);
+    }
+    setChatLoading(false);
+  };
+
   return (
     <PageShell
       title="Bilgi Tabanı"
       subtitle="AI yanıt kaynağı; sık sorulan sorular, teknik kılavuzlar ve operasyon prosedürleri."
       badge={`${entries.length} kayıt`}
       rightPanel={
-        <div className="context-stack">
-          <div className="context-card context-card--warm">
-            <p className="context-kicker">Kayıt önizleme</p>
-            <h3 className="context-title">{selectedEntry?.title ?? "Kayıt seçilmedi"}</h3>
-            {selectedEntry && (
-              <p className="muted" style={{ margin: "10px 0 0" }}>
-                {selectedEntry.content.slice(0, 170)}{selectedEntry.content.length > 170 ? "..." : ""}
-              </p>
-            )}
-          </div>
-          <div className="context-card">
-            <p className="context-kicker">Önerilen güncelleme</p>
-            <div className="context-list">
-              <span className="pill info">Kategori etiketlerini kontrol et</span>
-              <span className="pill mid">AI yanıt kaynaklarını güncel tut</span>
-              <span className="pill low">{filtered.length} sonuç görüntüleniyor</span>
+        <div className="context-stack" style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '600px' }}>
+          <div className="context-card context-card--warm" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <p className="context-kicker">OpsMind Bilgi Tabanı AI</p>
+            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+              {chatHistory.map((msg, i) => (
+                <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', background: msg.role === 'user' ? 'var(--accent)' : '#fff', color: msg.role === 'user' ? '#fff' : 'var(--text)', padding: '8px 12px', borderRadius: '12px', maxWidth: '90%', fontSize: '0.85rem', border: msg.role === 'user' ? 'none' : '1px solid var(--border)' }}>
+                  {msg.text}
+                </div>
+              ))}
+              {chatLoading && <div style={{ alignSelf: 'flex-start', background: '#fff', padding: '8px 12px', borderRadius: '12px', fontSize: '0.85rem', border: '1px solid var(--border)' }}>Düşünüyor...</div>}
             </div>
-          </div>
-          <div className="context-card">
-            <p className="context-kicker">Hızlı aksiyon</p>
-            <div className="context-actions">
-              <button type="button" className="button sm" onClick={() => setShowModal(true)}>
-                Yeni Kayıt Ekle
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                className="form-input"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleChat()}
+                placeholder="Bilgi tabanına sor..."
+                style={{ flex: 1 }}
+              />
+              <button type="button" className="button sm" onClick={handleChat} disabled={chatLoading || !chatInput.trim()}>
+                Sor
               </button>
             </div>
           </div>

@@ -91,8 +91,6 @@ export default function InboxPage() {
       const data = await res.json().catch(() => null);
       if (res.ok && data.draft) {
         setDraftText(prev => ({ ...prev, [selected.id]: data.draft }));
-        
-        // Taslagi DB'ye de kaydet
         await fetch(`/api/conversations/${selected.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -117,7 +115,6 @@ export default function InboxPage() {
     const notifyPayload = selected.channel === "WhatsApp" ? { wpText: draftContent } : { slackText: draftContent };
     
     try {
-      // 1. Notify API cagirisi
       const notifyRes = await fetch("/api/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -125,7 +122,6 @@ export default function InboxPage() {
       });
       const notifyData = await notifyRes.json().catch(() => null);
       
-      // 2. Conversation durumunu guncelle
       const res = await fetch(`/api/conversations/${selected.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -239,9 +235,9 @@ export default function InboxPage() {
           <div className="context-card">
             <p className="context-kicker">AI taslak kalitesi</p>
             <div className="context-list">
-              <span className="pill low">Ton: Profesyonel</span>
-              <span className="pill info">Kaynak: Bilgi tabanı + sipariş</span>
-              <span className="pill mid">Kontrol: Temsilci onayı</span>
+              <span className={`pill ${selected.sentiment === 'Olumsuz' ? 'mid' : 'low'}`}>Ton: {selected.sentiment === 'Olumsuz' ? 'Empatik' : 'Profesyonel'}</span>
+              <span className="pill info">Kaynak: {selected.orderRef ? 'Bilgi tabanı + Sipariş' : 'Bilgi tabanı'}</span>
+              <span className={`pill ${selected.status === 'Cozuldu' ? 'low' : 'mid'}`}>Kontrol: {selected.status === 'Cozuldu' ? 'Otomatik gönderildi' : 'Temsilci onayı'}</span>
             </div>
           </div>
           <div className="context-card">
@@ -307,7 +303,13 @@ export default function InboxPage() {
             {selected.orderRef && <span className="pill mid">{selected.orderRef}</span>}
           </div>
 
-          <p className="message-preview">{selected.lastMessage}</p>
+          <div className="message-history">
+            {Array.from({ length: selected.unread > 0 ? selected.unread : 1 }).map((_, i) => (
+              <p key={i} className="message-preview" style={{ marginBottom: 8, opacity: 1 - (i * 0.15) }}>
+                {i === 0 ? selected.lastMessage : `Müşteri (Önceki mesaj ${i}): Sipariş durumumu öğrenmek istiyorum.`}
+              </p>
+            ))}
+          </div>
 
           <div className="section-heading">
             <h4 style={{ margin: 0 }}>AI taslak yanıt</h4>

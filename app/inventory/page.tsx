@@ -12,6 +12,9 @@ export default function InventoryPage() {
   const [loadingSkus, setLoadingSkus] = useState<Set<string>>(new Set());
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [editStock, setEditStock] = useState("");
+  const [editReorderPoint, setEditReorderPoint] = useState("");
+  const [editWeeklyVelocity, setEditWeeklyVelocity] = useState("");
+  const [editSupplierLeadDays, setEditSupplierLeadDays] = useState("");
   const [selectedSku, setSelectedSku] = useState("");
 
   useEffect(() => {
@@ -70,12 +73,19 @@ export default function InventoryPage() {
     try {
       const res = await fetch("/api/inventory/order", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku, quantity: 20 }) });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) throw new Error(apiErrorMessage(data, "Sipariş verilemedi."));
+      if (!res.ok || !data?.ok) throw new Error(apiErrorMessage(data, "Siparis verilemedi."));
       if (data.ok) {
         setItems(prev => prev.map(i => i.sku === sku ? { ...i, stock: data.entry.stock, depletionDays: data.entry.depletionDays } : i));
-        showToast(`${sku} için tedarik siparişi verildi. Stok güncellendi.`);
+        const item = items.find(i => i.sku === sku);
+        const productName = item?.product ?? sku;
+        fetch("/api/supply-webhook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: `*OpsMind Tedarik Siparisi*\n${productName} (${sku}) icin 20 adet tedarik siparisi verildi.` }),
+        }).catch(() => {});
+        showToast(`${sku} icin tedarik siparisi verildi. Stok guncellendi.`);
       }
-    } catch (err) { showToast(err instanceof Error ? err.message : "Sipariş verilemedi.", "error"); }
+    } catch (err) { showToast(err instanceof Error ? err.message : "Siparis verilemedi.", "error"); }
     setLoadingSkus(prev => { const s = new Set(prev); s.delete(sku); return s; });
   };
 

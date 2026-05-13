@@ -21,7 +21,7 @@ async def notify(req: NotifyRequest):
     errors: List[str] = []
 
     async with httpx.AsyncClient() as client:
-        # Slack
+
         if req.slackText:
             if slack_webhook_url:
                 try:
@@ -40,7 +40,6 @@ async def notify(req: NotifyRequest):
                 print(f"[notify] Slack simulasyonu (webhook yok): {req.slackText[:80]}...")
                 results["slack"] = "simulation"
 
-        # WhatsApp
         if req.wpText:
             if wp_token and wp_phone_id and wp_notify_number:
                 try:

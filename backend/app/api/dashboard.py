@@ -8,7 +8,6 @@ router = APIRouter()
 async def get_dashboard():
     db = await get_db()
 
-    # KPI'lar
     kpi_row = await db.query(
         """
         SELECT
@@ -23,30 +22,25 @@ async def get_dashboard():
     today_orders = int(kpi.get("today_orders") or 0)
     revenue_try = float(kpi.get("revenue_try") or 0)
 
-    # Riskli kargo sayisi
     risky_rows = await db.query(
         "SELECT COUNT(*) AS cnt FROM shipments WHERE risk = 'Yuksek'"
     )
     risky_shipments = int(risky_rows[0]["cnt"]) if risky_rows else 0
 
-    # Kritik SKU sayisi (stok esik altinda veya 7 gunde tukeniyor)
     low_stock_rows = await db.query(
         "SELECT COUNT(*) AS cnt FROM inventory WHERE stock <= reorder_point OR depletion_days <= 7"
     )
     low_stock_skus = int(low_stock_rows[0]["cnt"]) if low_stock_rows else 0
 
-    # Cozulmus konusma sayisi
     resolved_rows = await db.query(
         "SELECT COUNT(*) AS cnt FROM conversations WHERE status = 'Cozuldu'"
     )
     auto_resolved = int(resolved_rows[0]["cnt"]) if resolved_rows else 0
 
-    # Ortalama ilk yanit suresi (dakika) - konusma sayisindan turetiliyor
     conv_count_rows = await db.query("SELECT COUNT(*) AS cnt FROM conversations")
     conv_count = int(conv_count_rows[0]["cnt"]) if conv_count_rows else 0
     avg_first_response = round(max(1.5, 6.0 - (auto_resolved / max(conv_count, 1)) * 4), 1) if conv_count > 0 else 3.8
 
-    # Son siparisler
     order_rows = await db.query(
         """
         SELECT
@@ -71,7 +65,6 @@ async def get_dashboard():
             item["createdAt"] = item["createdAt"].isoformat()
         recent_orders.append(item)
 
-    # Acik gorevler
     task_rows = await db.query(
         """
         SELECT id, title, owner, due, reason, status
@@ -82,7 +75,6 @@ async def get_dashboard():
         """
     )
 
-    # Aktivite logu
     activity_rows = await db.query(
         """
         SELECT
@@ -94,7 +86,6 @@ async def get_dashboard():
         """
     )
 
-    # Fulfillment dagilimi
     ff_rows = await db.query(
         """
         SELECT fulfillment_status, COUNT(*) AS cnt

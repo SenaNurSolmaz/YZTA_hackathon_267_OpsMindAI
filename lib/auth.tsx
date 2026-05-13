@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthCtx>({
 });
 
 const DEMO_USERS: AuthUser[] = [
-  { id: "u1", name: "Ahmet Demir", email: "ahmet@opsmind.com", role: "Admin", department: "Yönetim", avatar: "AD" },
+  { id: "u1", name: "Ahmet Demir", email: "ahmet@opsmind.com", role: "Admin", department: "Yönetim", avatar: "/gemini.png" },
   { id: "u2", name: "Selin Kaya", email: "selin@opsmind.com", role: "Operasyon", department: "Kargo & Lojistik", avatar: "SK" },
   { id: "u3", name: "Barış Arslan", email: "baris@opsmind.com", role: "Destek", department: "Müşteri Hizmetleri", avatar: "BA" },
 ];
@@ -61,7 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const parsed = JSON.parse(stored);
       if (isAuthUser(parsed)) {
-        setUser(parsed);
+        const updatedUser = DEMO_USERS.find(u => u.id === parsed.id) || parsed;
+        setUser(updatedUser);
+        if (JSON.stringify(parsed) !== JSON.stringify(updatedUser)) {
+          localStorage.setItem("opsmind_user", JSON.stringify(updatedUser));
+        }
       } else {
         localStorage.removeItem("opsmind_user");
       }

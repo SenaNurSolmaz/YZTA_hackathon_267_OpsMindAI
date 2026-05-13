@@ -86,14 +86,12 @@ async def export_shipping():
 async def update_shipping(order_id: str, req: ShippingUpdate):
     db = await get_db()
 
-    # Mevcut kaydi kontrol et
     existing = await db.query(
         'SELECT id FROM shipments WHERE order_id = $1', order_id
     )
     if not existing:
         raise HTTPException(status_code=404, detail="Kargo bulunamadi")
 
-    # Guncelleme sorgusunu dinamik olarak olustur
     updates = []
     params = []
     idx = 1

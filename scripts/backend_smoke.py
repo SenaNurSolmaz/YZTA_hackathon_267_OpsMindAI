@@ -18,7 +18,7 @@ for name in (
 ):
     os.environ[name] = ""
 
-from main import app  # noqa: E402
+from main import app
 
 
 client = TestClient(app)
