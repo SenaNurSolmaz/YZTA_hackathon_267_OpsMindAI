@@ -634,13 +634,12 @@ Bu proje, Yapay Zeka ve Teknoloji Akademisi (YZTA 5.0) kapsamında düzenlenen H
 -Aslı Tiryaki (Support Developer): Ayarlar, görev yönetimi ve kullanıcı rol bazlı erişim mekanizmalarının entegrasyonu; kargo, stok ve veri analitiği CSV export fonksiyonlarının test süreçleri.
 
 🎯 Ürün Yönetimi ve Proaktif İş Akışları Tasarımı 
-Yazılım dünyasındaki geliştirme commit'leri teknik roller tarafından atılmış olsa da, platformda can bulan tüm akıllı operasyonel senaryoların ve iş kurallarının arkasındaki ürün mimarisi tarafımdan kurgulanmıştır. Projede jüriden tam puan alan ve mülakatlarda değer yaratan 3 kritik proaktif senaryo tasarımı şudur:
 
 1. Reaktif Değil, Proaktif Kargo Risk Yönetimi
-   Geleneksel e-ticaret yazılımlarında kargo gecikmeleri ancak müşteri şikayet ettiğinde fark edilir. Kurguladığım mimaride, kargo firmasının API'sinden (simüle) gelen gecikme sinyalleri sistem tarafından otomatik yakalanır. Müşteri daha durumun farkına varmadan AI tarafından bir bilgilendirme mesajı hazırlanır ve eş zamanlı olarak operasyon yöneticisinin paneline yüksek riskli görev olarak atanır.
+   Geleneksel e-ticaret yazılımlarında kargo gecikmeleri ancak müşteri şikayet ettiğinde fark edilir. Kurgulanan mimaride, kargo firmasının API'sinden (simüle) gelen gecikme sinyalleri sistem tarafından otomatik yakalanır. Müşteri daha durumun farkına varmadan AI tarafından bir bilgilendirme mesajı hazırlanır ve eş zamanlı olarak operasyon yöneticisinin paneline yüksek riskli görev olarak atanır.
    
 2. Akıllı İletişim & Sıfır Halüsinasyon (Grounding)
-   Müşterilerin "128 numaralı siparişim nerede?" gibi sorularına büyük dil modellerinin ezbere veya uydurma (hallucination) cevaplar vermesini engellemek adına, yapay zekayı doğrudan PostgreSQL veritabanımızdaki gerçek sipariş ve SLA verileriyle besleyecek (RAG) mantıksal köprüyü kurdum. AI, veritabanından aldığı kargo durumunu WhatsApp/Email kanallarına insan müdahalesi olmadan otomatik olarak yanıt taslağı şeklinde hazırlar.
+   Müşterilerin "128 numaralı siparişim nerede?" gibi sorularına büyük dil modellerinin ezbere veya uydurma (hallucination) cevaplar vermesini engellemek adına, yapay zekayı doğrudan PostgreSQL veritabanımızdaki gerçek sipariş ve SLA verileriyle besleyecek (RAG) mantıksal köprüyü kurduk. AI, veritabanından aldığı kargo durumunu WhatsApp/Email kanallarına insan müdahalesi olmadan otomatik olarak yanıt taslağı şeklinde hazırlar.
    
 3. Kritik Eşikli Otomatik Tedarik Önerisi
    Bir tarım veya e-ticaret işletmesinde stok bittikten sonra aksiyon almak ciro kaybına yol açar. Sistemde envanter seviyeleri otomatik izlenirken, belirlenen kritik eşiklerin (Örn: Organik Domates < 50kg) altına düşüldüğü an sistem proaktif olarak devreye girer. Geçmiş satış hızını (velocity) analiz ederek ne kadar sipariş verilmesi gerektiğini hesaplar ve satın alma sorumlusuna Slack/WhatsApp üzerinden taslak bir tedarik siparişi iletir.
