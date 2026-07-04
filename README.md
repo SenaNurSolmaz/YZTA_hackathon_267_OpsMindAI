@@ -619,27 +619,18 @@ Bu proje hackathon kapsamında geliştirilmiştir.
 
 ---
 
-## 👥 Ekip ve Rol Dağılımı
+👥 Ekip ve Rol Dağılımı
+Bu proje, Yapay Zeka ve Teknoloji Akademisi (YZTA 5.0) kapsamında düzenlenen Hackathon & Datathon etkinliğinde, 5 kişilik bir yapay zeka bursiyeri ekibi tarafından 5 günlük yoğun bir süreçte uçtan uca geliştirilmiştir.  
 
-[cite_start]Bu proje, **Yapay Zeka ve Teknoloji Akademisi (YZTA 5.0)** kapsamında düzenlenen Hackathon & Datathon etkinliğinde [cite: 1, 3][cite_start], 5 kişilik bir yapay zeka bursiyeri ekibi tarafından 5 günlük yoğun bir süreçte uçtan uca geliştirilmiştir[cite: 3, 5].
+-Sena Nur Solmaz (Product / Delivery Lead): Ürün vizyonunun ve MVP (Minimum Uygulanabilir Ürün) kapsamının belirlenmesi; KOBİ'lerin manuel operasyonel problemlerinin analizi; n8n iş akışlarının mantıksal kurgusu ve backend entegrasyon stratejisi; 1 dakikalık jüri sunumunun hikayeleştirilmesi ve video scriptinin hazırlanması.
+-Beste Avcı (AI & Frontend Developer): Next.js 15 tabanlı proaktif yönetim dashboard arayüzünün tasarımı ve yapay zeka destekli müşteri yardım masası (Inbox) görsel bileşenlerinin geliştirilmesi.
+-Koray Öztürk (AI & Backend Developer): FastAPI & Python tabanlı backend mimarisinin kurulması, PostgreSQL ilişkisel veritabanı şemasının tasarlanması ve Gemini AI ajan entegrasyonlarının kodlanması.
+-Burak Koçaş (AI & Support Developer): Bilgi Tabanı (Knowledge Base) sistem mimarisinin kurgulanması, RAG (Retrieval-Augmented Generation) yaklaşımı için AI prompt ve grounding optimizasyonlarının yapılması.
+-Aslı Tiryaki (Support Developer): Ayarlar, görev yönetimi ve kullanıcı rol bazlı erişim mekanizmalarının entegrasyonu; kargo, stok ve veri analitiği CSV export fonksiyonlarının test süreçleri.
 
-* [cite_start]**Sena Nur Solmaz (Product / Delivery Lead):** Ürün vizyonunun ve MVP (Minimum Uygulanabilir Ürün) kapsamının belirlenmesi[cite: 104]; [cite_start]KOBİ'lerin manuel operasyonel problemlerinin analizi [cite: 4, 320][cite_start]; n8n iş akışlarının mantıksal kurgusu ve backend entegrasyon stratejisi[cite: 90]; [cite_start]1 dakikalık jüri sunumunun hikayeleştirilmesi ve video scriptinin hazırlanması[cite: 82, 91].
-* [cite_start]**Beste Avcı (AI & Frontend Developer):** Next.js 15 tabanlı proaktif yönetim dashboard arayüzünün tasarımı [cite: 64, 196] [cite_start]ve yapay zeka destekli müşteri yardım masası (Inbox) görsel bileşenlerinin geliştirilmesi[cite: 196].
-* [cite_start]**Koray Öztürk (AI & Backend Developer):** FastAPI & Python tabanlı backend mimarisinin kurulması [cite: 64, 128][cite_start], PostgreSQL ilişkisel veritabanı şemasının tasarlanması ve Gemini AI ajan entegrasyonlarının kodlanması[cite: 121, 197].
-* [cite_start]**Burak Koçaş (AI & Support Developer):** Bilgi Tabanı (Knowledge Base) sistem mimarisinin kurgulanması [cite: 101][cite_start], RAG (Retrieval-Augmented Generation) yaklaşımı için AI prompt ve grounding optimizasyonlarının yapılması[cite: 89, 119].
-* [cite_start]**Aslı Tiryaki (Support Developer):** Ayarlar, görev yönetimi ve kullanıcı rol bazlı erişim mekanizmalarının entegrasyonu [cite: 101][cite_start]; kargo, stok ve veri analitiği CSV export fonksiyonlarının test süreçleri[cite: 101].
+🎯 Ürün Yönetimi ve Proaktif İş Akışları Tasarımı
+Yazılım dünyasındaki geliştirme commit'leri teknik roller tarafından atılmış olsa da, platformda can bulan tüm akıllı operasyonel senaryoların ve iş kurallarının arkasındaki ürün mimarisi tarafımdan kurgulanmıştır. Projede jüriden tam puan alan ve mülakatlarda değer yaratan 3 kritik proaktif senaryo tasarımı şudur:
 
----
-
-## 🎯 Ürün Yönetimi ve Proaktif İş Akışları Tasarımı (Product Lead Notu)
-
-[cite_start]Yazılım dünyasındaki geliştirme commit'leri teknik roller tarafından atılmış olsa da [cite: 189][cite_start], platformda can bulan tüm akıllı operasyonel senaryoların ve iş kurallarının arkasındaki ürün mimarisi tarafımdan kurgulanmıştır[cite: 190]. [cite_start]Projede jüriden tam puan alan ve mülakatlarda değer yaratan 3 kritik proaktif senaryo tasarımı şudur[cite: 93, 210]:
-
-### 1. Reaktif Değil, Proaktif Kargo Risk Yönetimi
-[cite_start]Geleneksel e-ticaret yazılımlarında kargo gecikmeleri ancak müşteri şikayet ettiğinde fark edilir[cite: 318]. [cite_start]Kurguladığım mimaride, kargo firmasının API'sinden (simüle) gelen gecikme sinyalleri sistem tarafından otomatik yakalanır[cite: 328]. [cite_start]Müşteri daha durumun farkına varmadan AI tarafından bir bilgilendirme mesajı hazırlanır ve eş zamanlı olarak operasyon yöneticisinin paneline yüksek riskli görev olarak atanır[cite: 329].
-
-### 2. Akıllı İletişim & Sıfır Halüsinasyon (Grounding)
-[cite_start]Müşterilerin "128 numaralı siparişim nerede?" gibi sorularına büyük dil modellerinin ezbere veya uydurma (hallucination) cevaplar vermesini engellemek adına [cite: 89, 323][cite_start], yapay zekayı doğrudan PostgreSQL veritabanımızdaki gerçek sipariş ve SLA verileriyle besleyecek (RAG) mantıksal köprüyü kurdum[cite: 89, 119]. [cite_start]AI, veritabanından aldığı kargo durumunu WhatsApp/Email kanallarına insan müdahalesi olmadan otomatik olarak yanıt taslağı hazırlar[cite: 324].
-
-### 3. Kritik Eşikli Otomatik Tedarik Önerisi
-[cite_start]Bir tarım veya e-ticaret işletmesinde stok bittikten sonra aksiyon almak ciro kaybına yol açar[cite: 317, 331]. [cite_start]Sistemde envanter seviyeleri otomatik izlenirken, belirlenen kritik eşiklerin (Örn: Organik Domates < 50kg) altına düşüldüğü an sistem proaktif olarak devreye girer[cite: 330, 331]. [cite_start]Geçmiş satış hızını (velocity) analiz ederek ne kadar sipariş verilmesi gerektiğini hesaplar ve satın alma sorumlusuna Slack/WhatsApp üzerinden taslak bir tedarik siparişi iletir[cite: 331].****
+1. Reaktif Değil, Proaktif Kargo Risk YönetimiGeleneksel e-ticaret yazılımlarında kargo gecikmeleri ancak müşteri şikayet ettiğinde fark edilir. Kurguladığım mimaride, kargo firmasının API'sinden (simüle) gelen gecikme sinyalleri sistem tarafından otomatik yakalanır. Müşteri daha durumun farkına varmadan AI tarafından bir bilgilendirme mesajı hazırlanır ve eş zamanlı olarak operasyon yöneticisinin paneline yüksek riskli görev olarak atanır.
+2. Akıllı İletişim & Sıfır Halüsinasyon (Grounding)Müşterilerin "128 numaralı siparişim nerede?" gibi sorularına büyük dil modellerinin ezbere veya uydurma (hallucination) cevaplar vermesini engellemek adına, yapay zekayı doğrudan PostgreSQL veritabanımızdaki gerçek sipariş ve SLA verileriyle besleyecek (RAG) mantıksal köprüyü kurdum. AI, veritabanından aldığı kargo durumunu WhatsApp/Email kanallarına insan müdahalesi olmadan otomatik olarak yanıt taslağı şeklinde hazırlar.
+3. Kritik Eşikli Otomatik Tedarik ÖnerisiBir tarım veya e-ticaret işletmesinde stok bittikten sonra aksiyon almak ciro kaybına yol açar. Sistemde envanter seviyeleri otomatik izlenirken, belirlenen kritik eşiklerin (Örn: Organik Domates < 50kg) altına düşüldüğü an sistem proaktif olarak devreye girer. Geçmiş satış hızını (velocity) analiz ederek ne kadar sipariş verilmesi gerektiğini hesaplar ve satın alma sorumlusuna Slack/WhatsApp üzerinden taslak bir tedarik siparişi iletir.
